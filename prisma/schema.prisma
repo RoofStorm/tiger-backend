@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String?
+  email         String   @unique
+  passwordHash  String? 
+  avatarUrl     String?
+  loginMethod   LoginMethod @default(LOCAL)
+  providerId    String?
+  refreshToken  String?
+  role          Role      @default(USER)
+  status        UserStatus @default(ACTIVE)
+  points        Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  posts         Post[]
+  pointLogs     PointLog[]
+  redeemLogs    RedeemLog[]
+  userActions   UserPostAction[]
+  analytics     CornerAnalytics[]
+
+  @@map("users")
+}
+
+enum LoginMethod {
+  LOCAL
+  GOOGLE
+  FACEBOOK
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+model Post {
+  id         String  @id @default(uuid())
+  user       User    @relation(fields: [userId], references: [id])
+  userId     String
+  type       PostType
+  caption    String? 
+  url        String? 
+  isPinned   Boolean @default(false)
+  likeCount  Int     @default(0)
+  shareCount Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  actions    UserPostAction[]
+
+  @@map("posts")
+}
+
+enum PostType {
+  EMOJI_CARD
+  IMAGE
+  CONFESSION
+  CLIP
+}
+
+model UserPostAction {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
+  type      ActionType
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId, type])
+  @@map("user_post_actions")
+}
+
+enum ActionType {
+  LIKE
+  SHARE
+}
+
+model PointLog {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  points     Int
+  reason     String
+  referralUrl String?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@map("point_logs")
+}
+
+model RedeemLog {
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  giftCode     String
+  costPoints   Int
+  costLife     Int?
+  status       RedeemStatus @default(PENDING)
+  receiverInfo Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("redeem_logs")
+}
+
+enum RedeemStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DELIVERED
+}
+
+model CornerAnalytics {
+  id         String  @id @default(uuid())
+  user       User    @relation(fields: [userId], references: [id])
+  userId     String
+  corner     Int     // 0..4
+  duration   Int     // seconds
+  createdAt  DateTime @default(now())
+
+  @@map("corner_analytics")
+}
+
