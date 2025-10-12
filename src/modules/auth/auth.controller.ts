@@ -1,19 +1,23 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   UseGuards,
   Req,
-  Res,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { Request, Response } from 'express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Request } from 'express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, RefreshTokenDto } from './dto/auth.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { NextAuthGuard } from './guards/nextauth.guard';
 
 @ApiTags('Authentication')
 @Controller('api/auth')
@@ -29,73 +33,20 @@ export class AuthController {
   }
 
   @Post('login')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 200, description: 'User logged in successfully' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token' })
-  @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
-  @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto);
-  }
-
-  @Post('oauth/google')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth login' })
-  @ApiResponse({ status: 200, description: 'OAuth login successful' })
-  async googleAuth(@Req() req: Request) {
-    return this.authService.oauthLogin(req.user, 'google');
-  }
-
-  @Post('oauth/google/callback')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth callback' })
-  @ApiResponse({ status: 200, description: 'OAuth callback successful' })
-  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
-    const result = await this.authService.oauthLogin(req.user, 'google');
-    
-    // Redirect to frontend with tokens
-    const redirectUrl = `${process.env.CORS_ORIGIN}/auth/callback?access_token=${result.accessToken}&refresh_token=${result.refreshToken}`;
-    res.redirect(redirectUrl);
-  }
-
-  @Post('oauth/facebook')
-  @UseGuards(AuthGuard('facebook'))
-  @ApiOperation({ summary: 'Facebook OAuth login' })
-  @ApiResponse({ status: 200, description: 'OAuth login successful' })
-  async facebookAuth(@Req() req: Request) {
-    return this.authService.oauthLogin(req.user, 'facebook');
-  }
-
-  @Post('oauth/facebook/callback')
-  @UseGuards(AuthGuard('facebook'))
-  @ApiOperation({ summary: 'Facebook OAuth callback' })
-  @ApiResponse({ status: 200, description: 'OAuth callback successful' })
-  async facebookAuthCallback(@Req() req: Request, @Res() res: Response) {
-    const result = await this.authService.oauthLogin(req.user, 'facebook');
-    
-    // Redirect to frontend with tokens
-    const redirectUrl = `${process.env.CORS_ORIGIN}/auth/callback?access_token=${result.accessToken}&refresh_token=${result.refreshToken}`;
-    res.redirect(redirectUrl);
-  }
-
-  @Post('logout')
-  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Logout user' })
-  @ApiResponse({ status: 200, description: 'Logout successful' })
-  async logout(@Req() req: any) {
-    // Invalidate refresh token
-    await this.authService.logout(req.user.id);
-    return { message: 'Logout successful' };
+  @ApiOperation({ summary: 'Get current user' })
+  @ApiResponse({ status: 200, description: 'User retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getCurrentUser(@Req() req: Request) {
+    return this.authService.getCurrentUser((req as any).user.id);
   }
 }
-

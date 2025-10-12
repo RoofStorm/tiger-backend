@@ -10,4 +10,3 @@ import { PointsModule } from '../points/points.module';
   exports: [RedeemService],
 })
 export class RedeemModule {}
-

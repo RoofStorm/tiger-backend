@@ -1,18 +1,26 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Users')
 @Controller('api/users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get(':id/points/logs')
   @ApiOperation({ summary: 'Get user points logs' })
-  @ApiResponse({ status: 200, description: 'Points logs retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Points logs retrieved successfully',
+  })
   async getPointsLogs(
     @Param('id') userId: string,
     @Query('page') page = 1,
@@ -21,4 +29,3 @@ export class UsersController {
     return this.usersService.getPointsLogs(userId, page, limit);
   }
 }
-

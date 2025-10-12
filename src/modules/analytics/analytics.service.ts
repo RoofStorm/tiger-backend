@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCornerAnalyticsDto } from './dto/create-corner-analytics.dto';
 
@@ -12,9 +16,9 @@ export class AnalyticsService {
   ) {
     const { corner, durationSec } = createCornerAnalyticsDto;
 
-    // Validate corner (0-4)
-    if (corner < 0 || corner > 4) {
-      throw new BadRequestException('Corner must be between 0 and 4');
+    // Validate corner (0-5)
+    if (corner < 0 || corner > 5) {
+      throw new BadRequestException('Corner must be between 0 and 5');
     }
 
     // Validate duration
@@ -41,6 +45,40 @@ export class AnalyticsService {
     return analytics;
   }
 
+  async createCornerAnalyticsBatch(
+    events: CreateCornerAnalyticsDto[],
+    userId?: string,
+  ) {
+    // Validate all events
+    for (const event of events) {
+      if (event.corner < 0 || event.corner > 5) {
+        throw new BadRequestException('Corner must be between 0 and 5');
+      }
+      if (event.durationSec <= 0) {
+        throw new BadRequestException('Duration must be positive');
+      }
+    }
+
+    // If no userId provided, skip storing
+    if (!userId) {
+      return {
+        message: 'Analytics recorded (anonymous)',
+        count: events.length,
+      };
+    }
+
+    // Create multiple analytics records
+    const analytics = await this.prisma.cornerAnalytics.createMany({
+      data: events.map((event) => ({
+        userId,
+        corner: event.corner,
+        duration: event.durationSec,
+      })),
+    });
+
+    return { message: 'Analytics recorded', count: analytics.count };
+  }
+
   async getCornerSummary(corner: number, adminId: string) {
     // Verify admin
     const admin = await this.prisma.user.findUnique({
@@ -52,8 +90,8 @@ export class AnalyticsService {
     }
 
     // Validate corner
-    if (corner < 0 || corner > 4) {
-      throw new BadRequestException('Corner must be between 0 and 4');
+    if (corner < 0 || corner > 5) {
+      throw new BadRequestException('Corner must be between 0 and 5');
     }
 
     // Get analytics data for the corner
@@ -76,14 +114,20 @@ export class AnalyticsService {
     }
 
     // Calculate statistics
-    const durations = analytics.map(a => a.duration).sort((a, b) => a - b);
-    const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
+    const durations = analytics.map((a) => a.duration).sort((a, b) => a - b);
+    const totalDuration = durations.reduce(
+      (sum, duration) => sum + duration,
+      0,
+    );
     const averageDuration = totalDuration / durations.length;
-    
+
     // Calculate median
-    const medianDuration = durations.length % 2 === 0
-      ? (durations[durations.length / 2 - 1] + durations[durations.length / 2]) / 2
-      : durations[Math.floor(durations.length / 2)];
+    const medianDuration =
+      durations.length % 2 === 0
+        ? (durations[durations.length / 2 - 1] +
+            durations[durations.length / 2]) /
+          2
+        : durations[Math.floor(durations.length / 2)];
 
     return {
       corner,
@@ -132,10 +176,43 @@ export class AnalyticsService {
 
     // Get stats for all corners
     const stats = await Promise.all(
-      Array.from({ length: 5 }, (_, corner) => this.getCornerSummary(corner, adminId))
+      Array.from({ length: 5 }, (_, corner) =>
+        this.getCornerSummary(corner, adminId),
+      ),
     );
 
     return stats;
   }
-}
 
+  async getAllCornerAnalytics(adminId: string) {
+    // Verify admin
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view analytics');
+    }
+
+    // Get all analytics data
+    const analytics = await this.prisma.cornerAnalytics.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        corner: true,
+        duration: true,
+        createdAt: true,
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return analytics;
+  }
+}

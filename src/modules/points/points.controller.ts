@@ -8,21 +8,29 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { PointsService } from './points.service';
 import { GrantPointsDto } from './dto/grant-points.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Points')
 @Controller('api/points')
-@UseGuards(JwtAuthGuard)
+@UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class PointsController {
   constructor(private readonly pointsService: PointsService) {}
 
   @Get('history')
   @ApiOperation({ summary: 'Get user points history' })
-  @ApiResponse({ status: 200, description: 'Points history retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Points history retrieved successfully',
+  })
   async getPointsHistory(
     @Request() req,
     @Query('page') page = 1,
@@ -33,7 +41,10 @@ export class PointsController {
 
   @Get('summary')
   @ApiOperation({ summary: 'Get user points summary' })
-  @ApiResponse({ status: 200, description: 'Points summary retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Points summary retrieved successfully',
+  })
   async getPointsSummary(@Request() req) {
     return this.pointsService.getUserPoints(req.user.id);
   }
@@ -46,4 +57,3 @@ export class PointsController {
     return this.pointsService.grantPoints(grantPointsDto, req.user.id);
   }
 }
-

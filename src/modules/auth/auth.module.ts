@@ -9,10 +9,13 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
 import { UsersModule } from '../users/users.module';
+import { PointsModule } from '../points/points.module';
+import { NextAuthMiddleware } from './nextauth.middleware';
 
 @Module({
   imports: [
     UsersModule,
+    PointsModule,
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
@@ -30,9 +33,9 @@ import { UsersModule } from '../users/users.module';
     LocalStrategy,
     GoogleStrategy,
     FacebookStrategy,
+    NextAuthMiddleware,
   ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, NextAuthMiddleware],
 })
 export class AuthModule {}
-

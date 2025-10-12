@@ -19,51 +19,92 @@ export class ActionsService {
   ) {}
 
   async createAction(createActionDto: CreateActionDto, userId: string) {
-    const { postId, type } = createActionDto;
+    try {
+      const { postId, type } = createActionDto;
 
-    // Check if post exists
-    const post = await this.postsService.findOne(postId);
-    if (!post) {
-      throw new NotFoundException('Post not found');
-    }
+      // Check if post exists
+      const post = await this.postsService.findOne(postId);
+      if (!post) {
+        throw new NotFoundException('Post not found');
+      }
 
-    // Check if action already exists for LIKE (enforce uniqueness)
-    if (type === ActionType.LIKE) {
-      const existingAction = await this.prisma.userPostAction.findUnique({
-        where: {
-          userId_postId_type: {
-            userId,
-            postId,
-            type: ActionType.LIKE,
+      // Handle LIKE as toggle (like/unlike)
+      if (type === ActionType.LIKE) {
+        const existingAction = await this.prisma.userPostAction.findUnique({
+          where: {
+            userId_postId_type: {
+              userId,
+              postId,
+              type: ActionType.LIKE,
+            },
           },
+        });
+
+        if (existingAction) {
+          // Unlike: Remove action and recalculate count
+          await this.prisma.userPostAction.delete({
+            where: {
+              userId_postId_type: {
+                userId,
+                postId,
+                type: ActionType.LIKE,
+              },
+            },
+          });
+          // Update global counts after unlike
+          await this.postsService.recalculateAllCounts(postId);
+
+          // Deduct points for unliking (reverse the like bonus)
+          try {
+            await this.pointsService.awardPoints(userId, -5, 'Unlike post');
+          } catch (error) {
+            console.log('Error deducting points for unlike:', error.message);
+          }
+
+          return { action: 'unliked', liked: false };
+        } else {
+          // Like: Create action and update global counts
+          await this.prisma.userPostAction.create({
+            data: {
+              userId,
+              postId,
+              type: ActionType.LIKE,
+            },
+          });
+          // Update global counts after like
+          await this.postsService.recalculateAllCounts(postId);
+
+          // Award points for liking
+          try {
+            await this.pointsService.awardPoints(userId, 5, 'Like post');
+          } catch (error) {
+            console.log('Points already awarded for like:', error.message);
+          }
+
+          return { action: 'liked', liked: true };
+        }
+      }
+
+      // Handle other actions (SHARE) normally
+      const action = await this.prisma.userPostAction.create({
+        data: {
+          userId,
+          postId,
+          type,
         },
       });
 
-      if (existingAction) {
-        throw new ConflictException('Post already liked');
+      // Update global counts and award points for sharing
+      if (type === ActionType.SHARE) {
+        await this.postsService.recalculateAllCounts(postId);
+        await this.pointsService.awardPoints(userId, 10, 'Share post');
       }
+
+      return action;
+    } catch (error) {
+      console.error('Error in createAction:', error);
+      throw error;
     }
-
-    // Create action
-    const action = await this.prisma.userPostAction.create({
-      data: {
-        userId,
-        postId,
-        type,
-      },
-    });
-
-    // Update post counters
-    if (type === ActionType.LIKE) {
-      await this.postsService.updateLikeCount(postId, true);
-    } else if (type === ActionType.SHARE) {
-      await this.postsService.updateShareCount(postId);
-      
-      // Award points for sharing (business rule)
-      await this.pointsService.awardPoints(userId, 10, 'Share post');
-    }
-
-    return action;
   }
 
   async removeAction(postId: string, type: ActionType, userId: string) {
@@ -119,4 +160,3 @@ export class ActionsService {
     });
   }
 }
-

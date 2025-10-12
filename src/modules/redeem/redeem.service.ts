@@ -30,13 +30,49 @@ export class RedeemService {
 
     // Define gift codes and their costs
     const giftCodes = {
-      'voucher50k': { points: 1000, life: 1, maxPerUser: 3 },
-      'voucher100k': { points: 2000, life: 2, maxPerUser: 2 },
-      'voucher200k': { points: 4000, life: 4, maxPerUser: 1 },
-      'premium1month': { points: 5000, life: 5, maxPerUser: 1 },
+      voucher50k: { points: 1000, life: 1, maxPerUser: 3 },
+      voucher100k: { points: 2000, life: 2, maxPerUser: 2 },
+      voucher200k: { points: 4000, life: 4, maxPerUser: 1 },
+      premium1month: { points: 5000, life: 5, maxPerUser: 1 },
+      stickerpack: { points: 500, life: 1, maxPerUser: 5 }, // Sticker pack
     };
 
-    const gift = giftCodes[giftCode];
+    // Check if giftCode is a UUID (rewardId) or string code
+    let gift;
+    if (
+      giftCode.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+    ) {
+      // It's a UUID, find the reward and map to gift code
+      const reward = await this.prisma.reward.findUnique({
+        where: { id: giftCode },
+      });
+
+      if (!reward) {
+        throw new BadRequestException('Reward not found');
+      }
+
+      // Map reward name to gift code
+      const rewardNameToCode = {
+        'Voucher 50k': 'voucher50k',
+        'Voucher 100k': 'voucher100k',
+        'Voucher 200k': 'voucher200k',
+        'Premium 1 tháng': 'premium1month',
+        'Sticker Pack': 'stickerpack', // New gift code for sticker pack
+      };
+
+      const mappedCode = rewardNameToCode[reward.name];
+      if (!mappedCode) {
+        throw new BadRequestException('Reward not supported for redemption');
+      }
+
+      gift = giftCodes[mappedCode];
+    } else {
+      // It's a string code
+      gift = giftCodes[giftCode];
+    }
+
     if (!gift) {
       throw new BadRequestException('Invalid gift code');
     }
@@ -96,13 +132,22 @@ export class RedeemService {
     const skip = (page - 1) * limit;
 
     const [redeems, total] = await Promise.all([
-      this.prisma.redeemLog.findMany({
+      this.prisma.redeemRequest.findMany({
         where: { userId },
+        include: {
+          reward: {
+            select: {
+              id: true,
+              name: true,
+              imageUrl: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      this.prisma.redeemLog.count({
+      this.prisma.redeemRequest.count({
         where: { userId },
       }),
     ]);
@@ -146,38 +191,72 @@ export class RedeemService {
     });
   }
 
-  async getAllRedeems(page = 1, limit = 20, status?: RedeemStatus) {
-    const skip = (page - 1) * limit;
-    const where = status ? { status } : {};
+  async getAllRedeems(
+    page = 1,
+    limit = 20,
+    status?: RedeemStatus,
+    adminId?: string,
+  ) {
+    try {
+      // Check admin role if adminId provided
+      if (adminId) {
+        const admin = await this.prisma.user.findUnique({
+          where: { id: adminId },
+        });
 
-    const [redeems, total] = await Promise.all([
-      this.prisma.redeemLog.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+        if (!admin || admin.role !== 'ADMIN') {
+          throw new ForbiddenException('Only admins can view all redeems');
+        }
+      }
+
+      // Convert string parameters to numbers
+      const pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
+      const limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
+
+      const skip = (pageNum - 1) * limitNum;
+      const where = status ? { status } : {};
+
+      const [redeems, total] = await Promise.all([
+        this.prisma.redeemRequest.findMany({
+          where,
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            reward: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                pointsRequired: true,
+                imageUrl: true,
+              },
             },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.redeemLog.count({ where }),
-    ]);
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limitNum,
+        }),
+        this.prisma.redeemRequest.count({ where }),
+      ]);
 
-    return {
-      redeems,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    };
+      return {
+        redeems,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum),
+        },
+      };
+    } catch (error) {
+      console.error('getAllRedeems error:', error);
+      throw error;
+    }
   }
 
   private async checkUserRedeemLimits(
@@ -190,7 +269,11 @@ export class RedeemService {
         userId,
         giftCode,
         status: {
-          in: [RedeemStatus.PENDING, RedeemStatus.APPROVED, RedeemStatus.DELIVERED],
+          in: [
+            RedeemStatus.PENDING,
+            RedeemStatus.APPROVED,
+            RedeemStatus.DELIVERED,
+          ],
         },
       },
     });
@@ -202,4 +285,3 @@ export class RedeemService {
     }
   }
 }
-

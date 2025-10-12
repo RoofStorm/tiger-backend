@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { PointsService } from '../points/points.service';
 import { LoginDto, RegisterDto, RefreshTokenDto } from './dto/auth.dto';
 import { LoginMethod, UserStatus } from '@prisma/client';
 
@@ -17,6 +18,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
+    private pointsService: PointsService,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -81,6 +83,16 @@ export class AuthService {
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
+
+    // Award daily login bonus points
+    try {
+      console.log('Attempting to award daily login bonus to user:', user.id);
+      await this.pointsService.awardPoints(user.id, 50, 'Daily login bonus');
+      console.log('Daily login bonus awarded successfully');
+    } catch (error) {
+      // Ignore error if daily limit already reached
+      console.log('Daily login bonus already awarded today:', error.message);
+    }
 
     return {
       ...tokens,
@@ -162,7 +174,8 @@ export class AuthService {
           where: { id: user.id },
           data: {
             providerId: id,
-            loginMethod: provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
+            loginMethod:
+              provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
             avatarUrl: photos?.[0]?.value,
             name: displayName || user.name,
           },
@@ -175,7 +188,8 @@ export class AuthService {
           email,
           name: displayName,
           avatarUrl: photos?.[0]?.value,
-          loginMethod: provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
+          loginMethod:
+            provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
           providerId: id,
           status: UserStatus.ACTIVE,
         },
@@ -191,6 +205,18 @@ export class AuthService {
     };
   }
 
+  async getCurrentUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return this.usersService.sanitizeUser(user);
+  }
+
   async logout(userId: string) {
     // Invalidate refresh token
     await this.prisma.user.update({
@@ -202,7 +228,8 @@ export class AuthService {
   private async generateTokens(userId: string) {
     const payload = { sub: userId };
     const refreshSecret = this.configService.get('JWT_REFRESH_SECRET');
-    const refreshExpiresIn = this.configService.get('JWT_REFRESH_EXPIRES_IN') || '7d';
+    const refreshExpiresIn =
+      this.configService.get('JWT_REFRESH_EXPIRES_IN') || '7d';
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload),

@@ -1,4 +1,10 @@
-import { PrismaClient, LoginMethod, Role, UserStatus, PostType } from '@prisma/client';
+import {
+  PrismaClient,
+  LoginMethod,
+  Role,
+  UserStatus,
+  PostType,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -64,9 +70,48 @@ async function main() {
         type: PostType.IMAGE,
         caption: 'Beautiful sunset from my window',
         url: 'https://example.com/sunset.jpg',
-        isPinned: true,
         likeCount: 10,
         shareCount: 5,
+      },
+    }),
+  ]);
+
+  // Create rewards
+  const rewards = await Promise.all([
+    prisma.reward.create({
+      data: {
+        name: 'Voucher 50k',
+        description: 'Phiếu giảm giá 50,000 VNĐ tại các cửa hàng đối tác',
+        pointsRequired: 1000,
+        imageUrl: 'https://example.com/voucher50k.jpg',
+        isActive: true,
+      },
+    }),
+    prisma.reward.create({
+      data: {
+        name: 'Voucher 100k',
+        description: 'Phiếu giảm giá 100,000 VNĐ tại các cửa hàng đối tác',
+        pointsRequired: 2000,
+        imageUrl: 'https://example.com/voucher100k.jpg',
+        isActive: true,
+      },
+    }),
+    prisma.reward.create({
+      data: {
+        name: 'Premium 1 tháng',
+        description: 'Gói Premium 1 tháng với nhiều tính năng đặc biệt',
+        pointsRequired: 5000,
+        imageUrl: 'https://example.com/premium.jpg',
+        isActive: true,
+      },
+    }),
+    prisma.reward.create({
+      data: {
+        name: 'Sticker Pack',
+        description: 'Bộ sticker độc quyền của Tiger',
+        pointsRequired: 500,
+        imageUrl: 'https://example.com/stickers.jpg',
+        isActive: true,
       },
     }),
   ]);
@@ -96,6 +141,7 @@ async function main() {
   console.log(`👤 Admin user: admin@tiger.com / admin123`);
   console.log(`👤 Test user: user@tiger.com / user123`);
   console.log(`📝 Created ${posts.length} sample posts`);
+  console.log(`🎁 Created ${rewards.length} rewards`);
 }
 
 main()
@@ -106,4 +152,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

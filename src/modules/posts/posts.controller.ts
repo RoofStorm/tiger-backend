@@ -9,10 +9,15 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { NextAuthGuard } from '../auth/guards/nextauth.guard';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Posts')
 @Controller('api/posts')
@@ -20,20 +25,35 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Get()
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all posts' })
   @ApiResponse({ status: 200, description: 'Posts retrieved successfully' })
   async findAll(
     @Query('type') type?: string,
-    @Query('pinned') pinned?: string,
+    @Query('highlighted') highlighted?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Request() req?: any,
   ) {
-    return this.postsService.findAll({
-      type: type as any,
-      pinned: pinned === 'true' ? true : pinned === 'false' ? false : undefined,
-      page,
-      limit,
-    });
+    const validTypes = ['EMOJI_CARD', 'CONFESSION', 'IMAGE', 'VIDEO', 'CLIP'];
+    const postType =
+      type && validTypes.includes(type) ? (type as any) : undefined;
+
+    return this.postsService.findAll(
+      {
+        type: postType,
+        highlighted:
+          highlighted === 'true'
+            ? true
+            : highlighted === 'false'
+              ? false
+              : undefined,
+        page,
+        limit,
+      },
+      req?.user?.id,
+    );
   }
 
   @Get(':id')
@@ -45,7 +65,7 @@ export class PostsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new post' })
   @ApiResponse({ status: 201, description: 'Post created successfully' })
@@ -55,7 +75,7 @@ export class PostsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a post' })
   @ApiResponse({ status: 200, description: 'Post deleted successfully' })
@@ -65,4 +85,3 @@ export class PostsController {
     return this.postsService.remove(id, req.user.id);
   }
 }
-

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
@@ -10,6 +10,10 @@ import { PointsModule } from './modules/points/points.module';
 import { RedeemModule } from './modules/redeem/redeem.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { RewardsModule } from './modules/rewards/rewards.module';
+import { MoodCardsModule } from './modules/mood-cards/mood-cards.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
 
 @Module({
   imports: [
@@ -31,7 +35,13 @@ import { StorageModule } from './modules/storage/storage.module';
     RedeemModule,
     AnalyticsModule,
     StorageModule,
+    RewardsModule,
+    MoodCardsModule,
+    AdminModule,
   ],
 })
-export class AppModule {}
-
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(NextAuthMiddleware).forRoutes('*'); // Apply to all routes
+  }
+}

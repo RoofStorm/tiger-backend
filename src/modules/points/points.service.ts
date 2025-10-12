@@ -6,7 +6,12 @@ import { GrantPointsDto } from './dto/grant-points.dto';
 export class PointsService {
   constructor(private prisma: PrismaService) {}
 
-  async awardPoints(userId: string, points: number, reason: string, referralUrl?: string) {
+  async awardPoints(
+    userId: string,
+    points: number,
+    reason: string,
+    referralUrl?: string,
+  ) {
     // Check daily limits based on reason
     await this.checkDailyLimits(userId, reason);
 
@@ -120,6 +125,9 @@ export class PointsService {
     const limits = {
       'Daily login bonus': 1,
       'Share post': 1,
+      'Like post': 10, // Allow up to 10 likes per day
+      'Unlike post': 10, // Allow up to 10 unlikes per day
+      'Create post': 5, // Allow up to 5 posts per day
       'Challenge keep rhythm': 1, // Weekly limit handled separately
       'Challenge confession': 1, // Weekly limit handled separately
       'Invite friend': 2, // Weekly limit handled separately
@@ -194,4 +202,3 @@ export class PointsService {
     return Math.abs(result._sum.points || 0);
   }
 }
-
