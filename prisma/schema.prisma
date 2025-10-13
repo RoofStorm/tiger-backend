@@ -28,6 +28,7 @@ model User {
   redeemLogs     RedeemLog[]
   redeemRequests RedeemRequest[]
   userActions    UserPostAction[]
+  wishes         Wish[]
 
   @@map("users")
 }
@@ -114,6 +115,18 @@ model Reward {
   redeemRequests RedeemRequest[]
 
   @@map("rewards")
+}
+
+model Wish {
+  id            String   @id @default(uuid())
+  userId        String
+  content       String
+  isHighlighted Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@map("wishes")
 }
 
 model RedeemRequest {

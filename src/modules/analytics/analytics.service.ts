@@ -16,9 +16,9 @@ export class AnalyticsService {
   ) {
     const { corner, durationSec } = createCornerAnalyticsDto;
 
-    // Validate corner (0-5)
-    if (corner < 0 || corner > 5) {
-      throw new BadRequestException('Corner must be between 0 and 5');
+    // Validate corner (0-6)
+    if (corner < 0 || corner > 6) {
+      throw new BadRequestException('Corner must be between 0 and 6');
     }
 
     // Validate duration
@@ -51,8 +51,8 @@ export class AnalyticsService {
   ) {
     // Validate all events
     for (const event of events) {
-      if (event.corner < 0 || event.corner > 5) {
-        throw new BadRequestException('Corner must be between 0 and 5');
+      if (event.corner < 0 || event.corner > 6) {
+        throw new BadRequestException('Corner must be between 0 and 6');
       }
       if (event.durationSec <= 0) {
         throw new BadRequestException('Duration must be positive');

@@ -11,6 +11,7 @@ import { RedeemModule } from './modules/redeem/redeem.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { RewardsModule } from './modules/rewards/rewards.module';
+import { WishesModule } from './modules/wishes/wishes.module';
 import { MoodCardsModule } from './modules/mood-cards/mood-cards.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
@@ -36,6 +37,7 @@ import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
     AnalyticsModule,
     StorageModule,
     RewardsModule,
+    WishesModule,
     MoodCardsModule,
     AdminModule,
   ],
