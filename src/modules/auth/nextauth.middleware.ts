@@ -29,6 +29,9 @@ export class NextAuthMiddleware implements NestMiddleware {
         if (user && user.status === 'ACTIVE') {
           // Add user to request object
           req.user = user;
+        } else {
+          // Set user to null if not found or inactive
+          req.user = null;
         }
       } catch (error) {
         console.error('NextAuth middleware error:', error);
