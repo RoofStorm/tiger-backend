@@ -54,12 +54,7 @@ export class ActionsService {
           // Update global counts after unlike
           await this.postsService.recalculateAllCounts(postId);
 
-          // Deduct points for unliking (reverse the like bonus)
-          try {
-            await this.pointsService.awardPoints(userId, -5, 'Unlike post');
-          } catch (error) {
-            console.log('Error deducting points for unlike:', error.message);
-          }
+          // Points for like/unlike are disabled
 
           return { action: 'unliked', liked: false };
         } else {
@@ -74,12 +69,7 @@ export class ActionsService {
           // Update global counts after like
           await this.postsService.recalculateAllCounts(postId);
 
-          // Award points for liking
-          try {
-            await this.pointsService.awardPoints(userId, 5, 'Like post');
-          } catch (error) {
-            console.log('Points already awarded for like:', error.message);
-          }
+          // Points for like/unlike are disabled
 
           return { action: 'liked', liked: true };
         }

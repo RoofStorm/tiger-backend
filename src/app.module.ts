@@ -14,6 +14,8 @@ import { RewardsModule } from './modules/rewards/rewards.module';
 import { WishesModule } from './modules/wishes/wishes.module';
 import { MoodCardsModule } from './modules/mood-cards/mood-cards.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ReferralModule } from './modules/referral/referral.module';
+import { GuardsModule } from './common/guards/guards.module';
 import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
 
 @Module({
@@ -40,6 +42,8 @@ import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
     WishesModule,
     MoodCardsModule,
     AdminModule,
+    ReferralModule,
+    GuardsModule,
   ],
 })
 export class AppModule implements NestModule {

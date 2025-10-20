@@ -130,12 +130,8 @@ export class PostsService {
       },
     });
 
-    // Award points for creating post
-    try {
-      await this.pointsService.awardPoints(userId, 20, 'Create post');
-    } catch (error) {
-      console.log('Points already awarded for create post:', error.message);
-    }
+    // Points are now awarded in PostsController using PostService
+    // to implement weekly limits (100 points for first post per week)
 
     // Map url to imageUrl for frontend compatibility
     return {

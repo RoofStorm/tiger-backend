@@ -19,6 +19,8 @@ model User {
   role           Role              @default(USER)
   status         UserStatus        @default(ACTIVE)
   points         Int               @default(0)
+  referralCode   String?           @unique
+  referredBy     String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   analytics      CornerAnalytics[]
@@ -31,6 +33,9 @@ model User {
   wishes         Wish[]
   accounts       Account[]
   sessions       Session[]
+  referrals      User[]            @relation("UserReferrals")
+  referrer       User?             @relation("UserReferrals", fields: [referredBy], references: [id])
+  userLimits     UserLimit[]
 
   @@map("users")
 }
@@ -77,6 +82,27 @@ model PointLog {
   user        User     @relation(fields: [userId], references: [id])
 
   @@map("point_logs")
+}
+
+model UserLimit {
+  id        String   @id @default(uuid())
+  userId    String
+  limitType LimitType
+  period    DateTime // Start of period (week for weekly limits, day for daily limits)
+  count     Int      @default(0) // Number of bonuses this period
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, limitType, period])
+  @@map("user_limits")
+}
+
+enum LimitType {
+  REFERRAL_WEEKLY    // Weekly referral bonus limit
+  POST_WEEKLY        // Weekly post creation bonus limit
+  WISH_WEEKLY        // Weekly wish creation bonus limit
+  SHARE_DAILY        // Daily share bonus limit
 }
 
 model RedeemLog {

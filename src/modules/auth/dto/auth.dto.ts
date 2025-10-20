@@ -15,6 +15,11 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @ApiProperty({ example: 'ABC123', required: false })
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }
 
 export class LoginDto {
@@ -32,4 +37,3 @@ export class RefreshTokenDto {
   @IsString()
   refreshToken: string;
 }
-

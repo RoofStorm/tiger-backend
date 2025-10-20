@@ -13,10 +13,26 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
-  // CORS
+  // CORS - Allow all origins for development
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    credentials: true,
+    origin: true, // Allow all origins
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Range',
+      'Accept-Ranges',
+    ],
+    exposedHeaders: [
+      'Content-Length',
+      'Content-Range',
+      'Accept-Ranges',
+      'Content-Type',
+    ],
+    credentials: false, // Set to false when using wildcard origin
   });
 
   // Global validation pipe

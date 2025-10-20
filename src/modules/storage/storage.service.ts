@@ -121,4 +121,31 @@ export class StorageService {
 
     await cloudinary.uploader.destroy(publicId);
   }
+
+  async getVideoUrl(filename: string): Promise<string> {
+    const bucket = this.configService.get('S3_BUCKET');
+    const endpoint = this.configService.get('S3_ENDPOINT');
+
+    // Return direct MinIO URL for video
+    return `${endpoint}/${bucket}/tiger-videos/${filename}`;
+  }
+
+  async getVideoStream(filename: string): Promise<any> {
+    const bucket = this.configService.get('S3_BUCKET');
+
+    const params = {
+      Bucket: bucket,
+      Key: `tiger-videos/${filename}`,
+    };
+
+    try {
+      // Check if object exists first
+      await this.s3.headObject(params).promise();
+
+      // Return stream
+      return this.s3.getObject(params).createReadStream();
+    } catch (error) {
+      throw new Error(`Video not found: ${filename}`);
+    }
+  }
 }

@@ -16,16 +16,21 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ActionsService } from './actions.service';
+import { ShareService } from './share.service';
 import { CreateActionDto } from './dto/create-action.dto';
 import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 import { ActionType } from '@prisma/client';
+import { SHARE_LIMITS } from '../../constants/points';
 
 @ApiTags('Post Actions')
 @Controller('api/posts')
 @UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class ActionsController {
-  constructor(private readonly actionsService: ActionsService) {}
+  constructor(
+    private readonly actionsService: ActionsService,
+    private readonly shareService: ShareService,
+  ) {}
 
   @Post(':id/like')
   @ApiOperation({ summary: 'Like a post' })
@@ -45,10 +50,24 @@ export class ActionsController {
   @ApiResponse({ status: 409, description: 'Post already shared' })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async sharePost(@Param('id') postId: string, @Request() req) {
-    return this.actionsService.createAction(
+    const result = await this.actionsService.createAction(
       { type: 'SHARE', postId },
       req.user.id,
     );
+
+    // Award points for sharing (first share per day)
+    const pointsAwarded = await this.shareService.awardShareBonus(
+      req.user.id,
+      postId,
+    );
+
+    return {
+      ...result,
+      pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.DAILY_SHARE_POINTS} điểm cho việc chia sẻ bài viết đầu tiên trong ngày.`
+        : 'Bài viết đã được chia sẻ thành công. Bạn đã nhận điểm cho việc chia sẻ đầu tiên trong ngày này.',
+    };
   }
 
   @Delete(':id/actions')

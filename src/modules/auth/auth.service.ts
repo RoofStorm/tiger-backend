@@ -10,8 +10,10 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { PointsService } from '../points/points.service';
+import { ReferralService } from '../referral/referral.service';
 import { LoginDto, RegisterDto, RefreshTokenDto } from './dto/auth.dto';
 import { LoginMethod, UserStatus } from '@prisma/client';
+import { POINTS } from '../../constants/points';
 
 @Injectable()
 export class AuthService {
@@ -19,12 +21,13 @@ export class AuthService {
     private prisma: PrismaService,
     private usersService: UsersService,
     private pointsService: PointsService,
+    private referralService: ReferralService,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, name } = registerDto;
+    const { email, password, name, referralCode } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -32,14 +35,14 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException('Email này đã được sử dụng');
     }
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Create user
-    const user = await this.prisma.user.create({
+    let user = await this.prisma.user.create({
       data: {
         email,
         passwordHash,
@@ -48,6 +51,32 @@ export class AuthService {
         status: UserStatus.ACTIVE,
       },
     });
+
+    // Auto-generate referral code for new user
+    console.log(`🔄 Auto-generating referral code for new user: ${user.id}`);
+    const newUserReferralCode =
+      await this.referralService.generateReferralCode();
+    user = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { referralCode: newUserReferralCode },
+    });
+    console.log(
+      `✅ Generated referral code for new user: ${newUserReferralCode}`,
+    );
+
+    // Process referral if provided
+    if (referralCode) {
+      const referralResult = await this.referralService.processReferral(
+        user.id,
+        referralCode,
+      );
+      if (!referralResult.success) {
+        console.log('⚠️ Referral processing failed:', referralResult.message);
+        // Don't throw error, just log it - user registration should still succeed
+      } else {
+        console.log('✅ Referral processed:', referralResult.message);
+      }
+    }
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
@@ -67,32 +96,25 @@ export class AuthService {
     });
 
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     // Check user status
     if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Account is not active');
+      throw new UnauthorizedException('Tài khoản đã bị vô hiệu hóa');
     }
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
 
-    // Award daily login bonus points
-    try {
-      console.log('Attempting to award daily login bonus to user:', user.id);
-      await this.pointsService.awardPoints(user.id, 50, 'Daily login bonus');
-      console.log('Daily login bonus awarded successfully');
-    } catch (error) {
-      // Ignore error if daily limit already reached
-      console.log('Daily login bonus already awarded today:', error.message);
-    }
+    // Daily login bonus is now handled by Frontend auth.ts
+    // to implement Redis caching and prevent duplicates
 
     return {
       ...tokens,
@@ -115,7 +137,7 @@ export class AuthService {
       });
 
       if (!user || user.refreshToken !== refreshToken) {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new UnauthorizedException('Token không hợp lệ');
       }
 
       // Generate new tokens
@@ -159,7 +181,9 @@ export class AuthService {
     const email = emails?.[0]?.value;
 
     if (!email) {
-      throw new BadRequestException('Email not provided by OAuth provider');
+      throw new BadRequestException(
+        'Không thể lấy email từ nhà cung cấp OAuth',
+      );
     }
 
     // Check if user exists
@@ -181,6 +205,22 @@ export class AuthService {
           },
         });
       }
+
+      // Auto-generate referral code if user doesn't have one
+      if (!user.referralCode) {
+        console.log(
+          `🔄 Auto-generating referral code for existing ${provider} user: ${user.id}`,
+        );
+        const newUserReferralCode =
+          await this.referralService.generateReferralCode();
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { referralCode: newUserReferralCode },
+        });
+        console.log(
+          `✅ Generated referral code for existing ${provider} user: ${newUserReferralCode}`,
+        );
+      }
     } else {
       // Create new user
       user = await this.prisma.user.create({
@@ -194,6 +234,20 @@ export class AuthService {
           status: UserStatus.ACTIVE,
         },
       });
+
+      // Auto-generate referral code for new OAuth user
+      console.log(
+        `🔄 Auto-generating referral code for new ${provider} user: ${user.id}`,
+      );
+      const newUserReferralCode =
+        await this.referralService.generateReferralCode();
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { referralCode: newUserReferralCode },
+      });
+      console.log(
+        `✅ Generated referral code for new ${provider} user: ${newUserReferralCode}`,
+      );
     }
 
     // Generate tokens
@@ -211,7 +265,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Không tìm thấy người dùng');
     }
 
     return this.usersService.sanitizeUser(user);

@@ -10,12 +10,14 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
 import { UsersModule } from '../users/users.module';
 import { PointsModule } from '../points/points.module';
+import { ReferralModule } from '../referral/referral.module';
 import { NextAuthMiddleware } from './nextauth.middleware';
 
 @Module({
   imports: [
     UsersModule,
     PointsModule,
+    ReferralModule,
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({

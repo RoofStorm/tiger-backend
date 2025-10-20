@@ -1,46 +1,22 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
-import { UsersService } from './users.service';
-import { NextAuthGuard } from '../auth/guards/nextauth.guard';
-import { ReferralService } from '../referral/referral.service';
+import { Controller, Get, Post, Body, Request } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ReferralService } from './referral.service';
 
-@ApiTags('Users')
-@Controller('api/users')
-@UseGuards(NextAuthGuard)
-@ApiBearerAuth()
-export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly referralService: ReferralService,
-  ) {}
+@ApiTags('referral')
+@Controller('referral')
+export class ReferralController {
+  constructor(private readonly referralService: ReferralService) {}
 
-  @Get(':id/points/logs')
-  @ApiOperation({ summary: 'Get user points logs' })
-  @ApiResponse({
-    status: 200,
-    description: 'Points logs retrieved successfully',
-  })
-  async getPointsLogs(
-    @Param('id') userId: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
-  ) {
-    return this.usersService.getPointsLogs(userId, page, limit);
+  @Get('test')
+  @ApiOperation({ summary: 'Test endpoint' })
+  async test() {
+    return {
+      success: true,
+      message: 'Referral API is working!',
+    };
   }
 
-  @Get('referral/code')
+  @Get('code')
   @ApiOperation({ summary: 'Get or create referral code for user' })
   @ApiResponse({
     status: 200,
@@ -52,7 +28,7 @@ export class UsersController {
       if (!userId) {
         return {
           success: false,
-          error: 'Người dùng chưa đăng nhập',
+          error: 'User not authenticated',
           data: null,
         };
       }
@@ -79,7 +55,7 @@ export class UsersController {
     }
   }
 
-  @Get('referral/stats')
+  @Get('stats')
   @ApiOperation({ summary: 'Get referral statistics for user' })
   @ApiResponse({
     status: 200,
@@ -91,7 +67,7 @@ export class UsersController {
       if (!userId) {
         return {
           success: false,
-          error: 'Người dùng chưa đăng nhập',
+          error: 'User not authenticated',
           data: null,
         };
       }
@@ -108,6 +84,37 @@ export class UsersController {
         success: false,
         error: error.message,
         data: null,
+      };
+    }
+  }
+
+  @Post('process')
+  @ApiOperation({ summary: 'Process referral for new user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Referral processed successfully',
+  })
+  async processReferral(
+    @Body() body: { userId: string; referralCode: string },
+  ) {
+    try {
+      const { userId, referralCode } = body;
+      const result = await this.referralService.processReferral(
+        userId,
+        referralCode,
+      );
+
+      return {
+        success: result.success,
+        message: result.message,
+        pointsAwarded: result.pointsAwarded,
+      };
+    } catch (error) {
+      console.error('Error in processReferral:', error);
+      return {
+        success: false,
+        message: 'Error processing referral',
+        pointsAwarded: false,
       };
     }
   }

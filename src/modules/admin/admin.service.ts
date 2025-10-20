@@ -122,7 +122,13 @@ export class AdminService {
     });
   }
 
-  async getUsers(adminId: string, page = 1, limit = 20, role?: string) {
+  async getUsers(
+    adminId: string,
+    page = 1,
+    limit = 20,
+    role?: string,
+    status?: string,
+  ) {
     // Check if user is admin
     const admin = await this.prisma.user.findUnique({
       where: { id: adminId },
@@ -132,14 +138,21 @@ export class AdminService {
       throw new ForbiddenException('Only admins can access this endpoint');
     }
 
-    const skip = (page - 1) * limit;
-    const where = role ? { role: role as any } : {};
+    // Ensure page and limit are numbers
+    const pageNum = parseInt(page.toString(), 10);
+    const limitNum = parseInt(limit.toString(), 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+
+    if (role) where.role = role as any;
+    if (status) where.status = status as any;
 
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
         skip,
-        take: limit,
+        take: limitNum,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -160,11 +173,167 @@ export class AdminService {
 
     return {
       data: users,
+      total,
       pagination: {
-        page,
-        limit,
+        page: pageNum,
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / limit),
+        pages: Math.ceil(total / limitNum),
+      },
+    };
+  }
+
+  async getPosts(adminId: string, page = 1, limit = 20, highlighted?: boolean) {
+    // Check if user is admin
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can access this endpoint');
+    }
+
+    // Ensure page and limit are numbers
+    const pageNum = parseInt(page.toString(), 10);
+    const limitNum = parseInt(limit.toString(), 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+    if (highlighted !== undefined) where.highlighted = highlighted;
+
+    const [posts, total] = await Promise.all([
+      this.prisma.post.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+      this.prisma.post.count({ where }),
+    ]);
+
+    return {
+      data: posts,
+      total,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+      },
+    };
+  }
+
+  async getWishes(
+    adminId: string,
+    page = 1,
+    limit = 20,
+    highlighted?: boolean,
+  ) {
+    // Check if user is admin
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can access this endpoint');
+    }
+
+    // Ensure page and limit are numbers
+    const pageNum = parseInt(page.toString(), 10);
+    const limitNum = parseInt(limit.toString(), 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+    if (highlighted !== undefined) where.highlighted = highlighted;
+
+    const [wishes, total] = await Promise.all([
+      this.prisma.wish.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+      this.prisma.wish.count({ where }),
+    ]);
+
+    return {
+      data: wishes,
+      total,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+      },
+    };
+  }
+
+  async getRedeems(adminId: string, page = 1, limit = 20, status?: string) {
+    // Check if user is admin
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can access this endpoint');
+    }
+
+    // Ensure page and limit are numbers
+    const pageNum = parseInt(page.toString(), 10);
+    const limitNum = parseInt(limit.toString(), 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+    if (status) where.status = status as any;
+
+    const [redeems, total] = await Promise.all([
+      this.prisma.redeemLog.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+      this.prisma.redeemLog.count({ where }),
+    ]);
+
+    return {
+      data: redeems,
+      total,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
       },
     };
   }

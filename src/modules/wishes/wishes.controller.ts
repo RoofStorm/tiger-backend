@@ -16,15 +16,20 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { WishesService } from './wishes.service';
+import { WishService } from './wish.service';
 import { CreateWishDto } from './dto/create-wish.dto';
 import { NextAuthGuard } from '../auth/guards/nextauth.guard';
+import { WISH_LIMITS } from '../../constants/points';
 
 @ApiTags('Wishes')
 @Controller('api/wishes')
 @UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class WishesController {
-  constructor(private readonly wishesService: WishesService) {}
+  constructor(
+    private readonly wishesService: WishesService,
+    private readonly wishService: WishService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new wish' })
@@ -33,7 +38,24 @@ export class WishesController {
     description: 'Wish created successfully',
   })
   async createWish(@Body() createWishDto: CreateWishDto, @Request() req) {
-    return this.wishesService.createWish(createWishDto, req.user.id);
+    const wish = await this.wishesService.createWish(
+      createWishDto,
+      req.user.id,
+    );
+
+    // Award points for wish creation (first wish per week)
+    const pointsAwarded = await this.wishService.awardWishCreationBonus(
+      req.user.id,
+      wish.id,
+    );
+
+    return {
+      ...wish,
+      pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${WISH_LIMITS.WEEKLY_WISH_POINTS} điểm cho lời chúc đầu tiên trong tuần.`
+        : 'Lời chúc đã được tạo thành công. Bạn đã nhận điểm cho lời chúc đầu tiên trong tuần này.',
+    };
   }
 
   @Get()
@@ -96,5 +118,19 @@ export class WishesController {
   })
   async deleteWish(@Param('id') id: string, @Request() req) {
     return this.wishesService.deleteWish(id, req.user.id);
+  }
+
+  @Get('creation-stats')
+  @ApiOperation({ summary: 'Get wish creation stats for user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Wish creation stats retrieved successfully',
+  })
+  async getCreationStats(@Request() req) {
+    const stats = await this.wishService.getWishCreationStats(req.user.id);
+    return {
+      success: true,
+      data: stats,
+    };
   }
 }
