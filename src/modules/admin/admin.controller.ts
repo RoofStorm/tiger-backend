@@ -33,6 +33,15 @@ export class AdminController {
   })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getAdminStats(@Request() req) {
+    console.log('🔍 AdminController.getAdminStats called');
+    console.log('🔍 Request user:', req.user);
+    console.log('🔍 Authorization header:', req.headers.authorization);
+
+    if (!req.user) {
+      console.log('❌ No user found in request');
+      throw new Error('User not authenticated');
+    }
+
     return this.adminService.getAdminStats(req.user.id);
   }
 

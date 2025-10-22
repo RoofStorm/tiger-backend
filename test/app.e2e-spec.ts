@@ -18,7 +18,7 @@ describe('AppController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     prisma = moduleFixture.get<PrismaService>(PrismaService);
-    
+
     await app.init();
   });
 
@@ -30,7 +30,7 @@ describe('AppController (e2e)', () => {
     await prisma.redeemLog.deleteMany();
     await prisma.cornerAnalytics.deleteMany();
     await prisma.user.deleteMany();
-    
+
     await app.close();
   });
 
@@ -48,7 +48,7 @@ describe('AppController (e2e)', () => {
       expect(response.body).toHaveProperty('accessToken');
       expect(response.body).toHaveProperty('refreshToken');
       expect(response.body).toHaveProperty('user');
-      
+
       accessToken = response.body.accessToken;
       refreshToken = response.body.refreshToken;
       userId = response.body.user.id;
@@ -96,7 +96,7 @@ describe('AppController (e2e)', () => {
       expect(response.body).toHaveProperty('id');
       expect(response.body.type).toBe('EMOJI_CARD');
       expect(response.body.caption).toBe('Test post! 🐅');
-      
+
       postId = response.body.id;
     });
 
@@ -270,4 +270,3 @@ describe('AppController (e2e)', () => {
     });
   });
 });
-

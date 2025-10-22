@@ -21,6 +21,8 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Rewards')
 @Controller('api/rewards')
+@UseGuards(NextAuthGuard)
+@ApiBearerAuth()
 export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) {}
 

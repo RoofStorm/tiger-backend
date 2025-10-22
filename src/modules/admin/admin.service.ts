@@ -10,50 +10,86 @@ export class AdminService {
   constructor(private prisma: PrismaService) {}
 
   async getAdminStats(userId: string) {
-    // Check if user is admin
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    console.log('🔍 AdminService.getAdminStats called with userId:', userId);
 
-    if (!user || user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can access this endpoint');
-    }
+    try {
+      // Check if user is admin
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
 
-    const [totalUsers, totalPosts, totalRedeems, totalPointsAwarded] =
-      await Promise.all([
-        this.prisma.user.count(),
-        this.prisma.post.count(),
-        this.prisma.redeemRequest.count(),
-        this.prisma.pointsLog.aggregate({
-          _sum: { points: true },
-        }),
+      console.log('🔍 User found:', user);
+
+      if (!user || user.role !== 'ADMIN') {
+        throw new ForbiddenException('Only admins can access this endpoint');
+      }
+
+      console.log('🔍 Querying database stats...');
+
+      // Test simple raw SQL query first
+      try {
+        const testQuery = await this.prisma.$queryRaw`SELECT 1 as test`;
+        console.log('🔍 Test query result:', testQuery);
+      } catch (error) {
+        console.error('❌ Test query failed:', error);
+        throw error;
+      }
+
+      // Use raw SQL queries to bypass Prisma client issues
+      const [
+        totalUsersResult,
+        totalPostsResult,
+        totalRedeemsResult,
+        totalPointsResult,
+        recentActivityResult,
+      ] = await Promise.all([
+        this.prisma.$queryRaw`SELECT COUNT(*) as count FROM users`,
+        this.prisma.$queryRaw`SELECT COUNT(*) as count FROM posts`,
+        this.prisma.$queryRaw`SELECT COUNT(*) as count FROM redeem_requests`,
+        this.prisma
+          .$queryRaw`SELECT COALESCE(SUM(points), 0) as total FROM point_logs`,
+        this.prisma.$queryRaw`
+          SELECT pl.*, u.name, u.email 
+          FROM point_logs pl 
+          JOIN users u ON pl."userId" = u.id 
+          ORDER BY pl."createdAt" DESC 
+          LIMIT 10
+        `,
       ]);
 
-    // Get recent activity
-    const recentActivity = await this.prisma.pointsLog.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
+      const totalUsers = Number((totalUsersResult as any)[0].count);
+      const totalPosts = Number((totalPostsResult as any)[0].count);
+      const totalRedeems = Number((totalRedeemsResult as any)[0].count);
+      const totalPointsAwarded = Number((totalPointsResult as any)[0].total);
 
-    return {
-      totalUsers,
-      totalPosts,
-      totalRedeems,
-      totalPointsAwarded: totalPointsAwarded._sum.points || 0,
-      recentActivity: recentActivity.map((log) => ({
-        type: log.type,
-        description: `${log.user.name} earned ${log.points} points`,
+      console.log('🔍 Database stats (raw SQL):', {
+        totalUsers,
+        totalPosts,
+        totalRedeems,
+        totalPointsAwarded,
+      });
+
+      const recentActivity = (recentActivityResult as any[]).map((log) => ({
+        description: `${log.name} earned ${log.points} points`,
         timestamp: log.createdAt,
-      })),
-    };
+      }));
+
+      console.log('🔍 Recent activity count:', recentActivity.length);
+
+      const result = {
+        totalUsers,
+        totalPosts,
+        totalRedeems,
+        totalPointsAwarded,
+        recentActivity,
+      };
+
+      console.log('🔍 Final result:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error in AdminService.getAdminStats:', error);
+      throw error;
+    }
   }
 
   async getRedeemLogs(page = 1, limit = 20, status?: string, userId?: string) {
@@ -307,7 +343,7 @@ export class AdminService {
     if (status) where.status = status as any;
 
     const [redeems, total] = await Promise.all([
-      this.prisma.redeemLog.findMany({
+      this.prisma.redeemRequest.findMany({
         where,
         skip,
         take: limitNum,
@@ -321,9 +357,19 @@ export class AdminService {
               avatarUrl: true,
             },
           },
+          reward: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              pointsRequired: true,
+              lifeRequired: true,
+              imageUrl: true,
+            },
+          },
         },
       }),
-      this.prisma.redeemLog.count({ where }),
+      this.prisma.redeemRequest.count({ where }),
     ]);
 
     return {

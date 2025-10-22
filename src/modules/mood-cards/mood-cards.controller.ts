@@ -19,6 +19,8 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Mood Cards')
 @Controller('api/mood-cards')
+@UseGuards(NextAuthGuard)
+@ApiBearerAuth()
 export class MoodCardsController {
   constructor(private readonly moodCardsService: MoodCardsService) {}
 

@@ -25,7 +25,6 @@ model User {
   updatedAt      DateTime          @updatedAt
   analytics      CornerAnalytics[]
   pointLogs      PointLog[]
-  pointsLogs     PointsLog[]
   posts          Post[]
   redeemLogs     RedeemLog[]
   redeemRequests RedeemRequest[]
@@ -135,9 +134,11 @@ model Reward {
   id             String          @id @default(uuid())
   name           String
   description    String
-  pointsRequired Int
+  pointsRequired Int             // Điểm năng lượng cần thiết
+  lifeRequired   Int?            // Nhịp sống cần thiết (null nếu chỉ dùng điểm)
   imageUrl       String?
   isActive       Boolean         @default(true)
+  maxPerUser     Int?            // Giới hạn số lần đổi per user (null = không giới hạn)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   redeemRequests RedeemRequest[]
@@ -166,6 +167,7 @@ model RedeemRequest {
   receiverAddress String
   status          RedeemStatus @default(PENDING)
   pointsUsed      Int
+  rejectionReason String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   reward          Reward       @relation(fields: [rewardId], references: [id])
@@ -174,17 +176,6 @@ model RedeemRequest {
   @@map("redeem_requests")
 }
 
-model PointsLog {
-  id        String   @id @default(uuid())
-  userId    String
-  points    Int
-  type      String
-  reason    String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@map("points_logs")
-}
 
 enum LoginMethod {
   LOCAL

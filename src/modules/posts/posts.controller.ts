@@ -62,6 +62,8 @@ export class PostsController {
   }
 
   @Get(':id')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get post by ID' })
   @ApiResponse({ status: 200, description: 'Post retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Post not found' })

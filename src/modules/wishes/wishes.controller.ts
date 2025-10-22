@@ -75,6 +75,8 @@ export class WishesController {
   }
 
   @Get('highlighted')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get highlighted wishes' })
   @ApiResponse({
     status: 200,
@@ -85,6 +87,8 @@ export class WishesController {
   }
 
   @Get('user')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user wishes' })
   @ApiResponse({
     status: 200,
@@ -121,6 +125,8 @@ export class WishesController {
   }
 
   @Get('creation-stats')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get wish creation stats for user' })
   @ApiResponse({
     status: 200,

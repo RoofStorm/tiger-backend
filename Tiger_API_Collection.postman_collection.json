@@ -1,0 +1,1190 @@
+{
+  "info": {
+    "name": "Tiger API Collection",
+    "description": "Complete API collection for Tiger Mood Corner application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@tiger.com\",\n  \"password\": \"test123\",\n  \"referralCode\": \"TIGER123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', response.data.accessToken);",
+                  "        pm.collectionVariables.set('refreshToken', response.data.refreshToken);",
+                  "        pm.collectionVariables.set('userId', response.data.user.id);",
+                  "        console.log('Tokens saved to collection variables');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@tiger.com\",\n  \"password\": \"user123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "refresh"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get User Points Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/points/logs?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "points", "logs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Referral Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/referral/code",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "referral", "code"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Referral Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/referral/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "referral", "stats"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Points",
+      "item": [
+        {
+          "name": "Get Points History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/points/history?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "points", "history"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Points Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/points/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "points", "summary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Grant Points (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"points\": 100,\n  \"reason\": \"Test bonus\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/points/grant",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "points", "grant"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "Get All Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Post by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CONFESSION\",\n  \"caption\": \"This is a test post from Postman\",\n  \"url\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Post",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Post Creation Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/creation-stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "creation-stats"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Post Actions",
+      "item": [
+        {
+          "name": "Like Post",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/like",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postId}}", "like"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Share Post",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/share",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postId}}", "share"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Post Action",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/actions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postId}}", "actions"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Actions",
+      "item": [
+        {
+          "name": "Get User Actions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/actions/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "actions", "user"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Redeems",
+      "item": [
+        {
+          "name": "Get User Redeems",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/redeems",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "redeems"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Redeem Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rewardId\": \"{{rewardId}}\",\n  \"receiverName\": \"John Doe\",\n  \"receiverPhone\": \"0123456789\",\n  \"receiverAddress\": \"123 Main St, City\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/redeems",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "redeems"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Admin Redeems",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/redeems/admin?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "redeems", "admin"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Redeem Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\",\n  \"rejectionReason\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/redeems/{{redeemId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "redeems", "{{redeemId}}", "status"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Track Corner Analytics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"corner\": \"corner1\",\n  \"action\": \"view\",\n  \"metadata\": {\n    \"duration\": 30\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/corners",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analytics", "corners"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Corner Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/corner/corner1/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analytics", "corner", "corner1", "summary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Corner Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/corners",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analytics", "corners"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Corner Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/corner/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analytics", "corner", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analytics", "user"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Storage",
+      "item": [
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/storage/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "storage", "upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload to Cloudinary",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/storage/upload/cloudinary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "storage", "upload", "cloudinary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Presigned URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"test-image.jpg\",\n  \"fileType\": \"image/jpeg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/storage/presigned-url",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "storage", "presigned-url"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sign Upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"test-image.jpg\",\n  \"fileType\": \"image/jpeg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/storage/sign",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "storage", "sign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Video",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/storage/video/exampleclip.mp4",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "storage", "video", "exampleclip.mp4"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Video Stream",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/storage/video-stream/exampleclip.mp4",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "storage", "video-stream", "exampleclip.mp4"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rewards",
+      "item": [
+        {
+          "name": "Get All Rewards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rewards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rewards"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Reward by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rewards/{{rewardId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rewards", "{{rewardId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Reward (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Reward\",\n  \"description\": \"A test reward for API testing\",\n  \"imageUrl\": \"https://example.com/reward.jpg\",\n  \"pointsRequired\": 1000,\n  \"currencyType\": \"ENERGY\",\n  \"perUserLimit\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rewards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rewards"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Reward (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Test Reward\",\n  \"description\": \"Updated description\",\n  \"pointsRequired\": 1500\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rewards/{{rewardId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rewards", "{{rewardId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Reward (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rewards/{{rewardId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rewards", "{{rewardId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Wishes",
+      "item": [
+        {
+          "name": "Create Wish",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"I wish to travel around the world\",\n  \"category\": \"TRAVEL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/wishes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wishes"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Wishes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wishes?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wishes"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Highlighted Wishes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wishes/highlighted",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wishes", "highlighted"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Wishes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wishes/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wishes", "user"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle Wish Highlight",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wishes/{{wishId}}/toggle-highlight",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wishes", "{{wishId}}", "toggle-highlight"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Wish",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wishes/{{wishId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wishes", "{{wishId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wish Creation Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wishes/creation-stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wishes", "creation-stats"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mood Cards",
+      "item": [
+        {
+          "name": "Get All Mood Cards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mood-cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mood-cards"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Mood Card by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mood-cards/{{moodCardId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mood-cards", "{{moodCardId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Mood Card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emojis\": [\"😊\", \"🌟\", \"💫\"],\n  \"whisper\": \"I feel grateful today\",\n  \"reminder\": \"Remember to stay positive\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mood-cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mood-cards"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Share Mood Card",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mood-cards/{{moodCardId}}/share",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mood-cards", "{{moodCardId}}", "share"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Admin Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Posts (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/posts?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "posts"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Wishes (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/wishes?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "wishes"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Redeems (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/redeems?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "redeems"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Highlight Post (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/posts/{{postId}}/highlight",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "posts", "{{postId}}", "highlight"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unhighlight Post (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/posts/{{postId}}/unhighlight",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "posts", "{{postId}}", "unhighlight"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Redeem Status (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"REJECTED\",\n  \"rejectionReason\": \"Invalid information provided\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/redeems/{{redeemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "redeems", "{{redeemId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Referral",
+      "item": [
+        {
+          "name": "Test Referral",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/referral/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["referral", "test"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Referral Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/referral/code",
+              "host": ["{{baseUrl}}"],
+              "path": ["referral", "code"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Referral Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/referral/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["referral", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Process Referral",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referralCode\": \"TIGER123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/referral/process",
+              "host": ["{{baseUrl}}"],
+              "path": ["referral", "process"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -24,7 +24,7 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Storage')
 @Controller('api/storage')
-// @UseGuards(NextAuthGuard) // Temporarily disable guard for testing
+@UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class StorageController {
   constructor(private readonly storageService: StorageService) {}

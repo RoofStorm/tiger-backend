@@ -78,40 +78,101 @@ async function main() {
 
   // Create rewards
   const rewards = await Promise.all([
+    // Voucher 50k - 200 điểm năng lượng (giới hạn 3 lần/user)
     prisma.reward.create({
       data: {
-        name: 'Voucher 50k',
-        description: 'Phiếu giảm giá 50,000 VNĐ tại các cửa hàng đối tác',
-        pointsRequired: 1000,
-        imageUrl: 'https://example.com/voucher50k.jpg',
+        name: 'Voucher 50k cho sản phẩm Tiger',
+        description: 'Phiếu giảm giá 50,000 VNĐ cho sản phẩm Tiger',
+        pointsRequired: 200,
+        lifeRequired: null,
+        imageUrl: 'https://example.com/voucher50k-tiger.jpg',
         isActive: true,
+        maxPerUser: 3,
       },
     }),
+    // Voucher 100k - 300 điểm năng lượng (giới hạn 3 lần/user)
     prisma.reward.create({
       data: {
-        name: 'Voucher 100k',
-        description: 'Phiếu giảm giá 100,000 VNĐ tại các cửa hàng đối tác',
-        pointsRequired: 2000,
-        imageUrl: 'https://example.com/voucher100k.jpg',
+        name: 'Voucher 100k cho sản phẩm Tiger',
+        description: 'Phiếu giảm giá 100,000 VNĐ cho sản phẩm Tiger',
+        pointsRequired: 300,
+        lifeRequired: null,
+        imageUrl: 'https://example.com/voucher100k-tiger.jpg',
         isActive: true,
+        maxPerUser: 3,
       },
     }),
+    // Voucher 300k - 500 điểm năng lượng (giới hạn 3 lần/user)
     prisma.reward.create({
       data: {
-        name: 'Premium 1 tháng',
-        description: 'Gói Premium 1 tháng với nhiều tính năng đặc biệt',
-        pointsRequired: 5000,
-        imageUrl: 'https://example.com/premium.jpg',
-        isActive: true,
-      },
-    }),
-    prisma.reward.create({
-      data: {
-        name: 'Sticker Pack',
-        description: 'Bộ sticker độc quyền của Tiger',
+        name: 'Voucher 300k cho sản phẩm Tiger',
+        description: 'Phiếu giảm giá 300,000 VNĐ cho sản phẩm Tiger',
         pointsRequired: 500,
-        imageUrl: 'https://example.com/stickers.jpg',
+        lifeRequired: null,
+        imageUrl: 'https://example.com/voucher300k-tiger.jpg',
         isActive: true,
+        maxPerUser: 3,
+      },
+    }),
+    // Hộp cơm Tiger - 1 Nhịp sống (giới hạn 1 lần/user)
+    prisma.reward.create({
+      data: {
+        name: 'Hộp cơm Tiger',
+        description: 'Hộp cơm Tiger cao cấp, giữ nhiệt tốt',
+        pointsRequired: 0,
+        lifeRequired: 1,
+        imageUrl: 'https://example.com/lunchbox-tiger.jpg',
+        isActive: true,
+        maxPerUser: 1,
+      },
+    }),
+    // Bình giữ nhiệt Tiger - 2 Nhịp sống (giới hạn 1 lần/user)
+    prisma.reward.create({
+      data: {
+        name: 'Bình giữ nhiệt Tiger',
+        description: 'Bình giữ nhiệt Tiger cao cấp, giữ nhiệt 24h',
+        pointsRequired: 0,
+        lifeRequired: 2,
+        imageUrl: 'https://example.com/thermos-tiger.jpg',
+        isActive: true,
+        maxPerUser: 1,
+      },
+    }),
+    // Máy xay sinh tố Tiger - 3 Nhịp sống (giới hạn 1 lần/user)
+    prisma.reward.create({
+      data: {
+        name: 'Máy xay sinh tố Tiger',
+        description: 'Máy xay sinh tố Tiger công suất cao, đa năng',
+        pointsRequired: 0,
+        lifeRequired: 3,
+        imageUrl: 'https://example.com/blender-tiger.jpg',
+        isActive: true,
+        maxPerUser: 1,
+      },
+    }),
+    // Nồi cơm điện Tiger bản thường - 5 Nhịp sống (giới hạn 1 lần/user)
+    prisma.reward.create({
+      data: {
+        name: 'Nồi cơm điện Tiger (bản thường)',
+        description: 'Nồi cơm điện Tiger bản thường, tiết kiệm điện',
+        pointsRequired: 0,
+        lifeRequired: 5,
+        imageUrl: 'https://example.com/rice-cooker-tiger-basic.jpg',
+        isActive: true,
+        maxPerUser: 1,
+      },
+    }),
+    // Nồi cơm điện Tiger cao tần - 10 Nhịp sống (giới hạn 1 lần/user)
+    prisma.reward.create({
+      data: {
+        name: 'Nồi cơm điện Tiger cao tần (phiên bản cao cấp)',
+        description:
+          'Nồi cơm điện Tiger cao tần phiên bản cao cấp, công nghệ IH',
+        pointsRequired: 0,
+        lifeRequired: 10,
+        imageUrl: 'https://example.com/rice-cooker-tiger-premium.jpg',
+        isActive: true,
+        maxPerUser: 1,
       },
     }),
   ]);

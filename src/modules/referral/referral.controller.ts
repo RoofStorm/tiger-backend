@@ -1,9 +1,24 @@
-import { Controller, Get, Post, Body, Request } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ReferralService } from './referral.service';
+import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('referral')
 @Controller('referral')
+@UseGuards(NextAuthGuard)
+@ApiBearerAuth()
 export class ReferralController {
   constructor(private readonly referralService: ReferralService) {}
 

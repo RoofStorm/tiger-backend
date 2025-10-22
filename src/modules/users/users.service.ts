@@ -31,7 +31,7 @@ export class UsersService {
 
   async getPointsLogs(userId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
-    
+
     const [logs, total] = await Promise.all([
       this.prisma.pointLog.findMany({
         where: { userId },
@@ -60,4 +60,3 @@ export class UsersService {
     return sanitized;
   }
 }
-

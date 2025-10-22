@@ -38,6 +38,15 @@ export class RedeemController {
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
+    console.log('🔍 RedeemController.getUserRedeems called');
+    console.log('🔍 Request user:', req.user);
+    console.log('🔍 User ID:', req.user?.id);
+
+    if (!req.user) {
+      console.log('❌ No user found in request');
+      throw new Error('User not authenticated');
+    }
+
     return this.redeemService.getUserRedeems(req.user.id, page, limit);
   }
 
