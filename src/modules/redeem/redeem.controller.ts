@@ -88,9 +88,14 @@ export class RedeemController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async updateRedeemStatus(
     @Param('id') redeemId: string,
-    @Body('status') status: RedeemStatus,
+    @Body() body: { status: RedeemStatus; rejectionReason?: string },
     @Request() req,
   ) {
-    return this.redeemService.updateRedeemStatus(redeemId, status, req.user.id);
+    return this.redeemService.updateRedeemStatus(
+      redeemId,
+      body.status,
+      req.user.id,
+      body.rejectionReason,
+    );
   }
 }
