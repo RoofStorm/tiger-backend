@@ -177,6 +177,31 @@ async function main() {
     }),
   ]);
 
+  // Create sample wishes
+  const wishes = await Promise.all([
+    prisma.wish.create({
+      data: {
+        userId: user.id,
+        content: 'Chúc mọi người có một ngày tuyệt vời! 🌟',
+        isHighlighted: true,
+      },
+    }),
+    prisma.wish.create({
+      data: {
+        userId: user.id,
+        content: 'Hy vọng năm mới sẽ mang đến nhiều niềm vui và hạnh phúc! 🎉',
+        isHighlighted: true,
+      },
+    }),
+    prisma.wish.create({
+      data: {
+        userId: admin.id,
+        content: 'Chúc cộng đồng Tiger Mood Corner luôn vui vẻ và gắn kết! 🐅',
+        isHighlighted: false,
+      },
+    }),
+  ]);
+
   // Create point logs
   await prisma.pointLog.createMany({
     data: [
@@ -203,6 +228,7 @@ async function main() {
   console.log(`👤 Test user: user@tiger.com / user123`);
   console.log(`📝 Created ${posts.length} sample posts`);
   console.log(`🎁 Created ${rewards.length} rewards`);
+  console.log(`🌟 Created ${wishes.length} sample wishes`);
 }
 
 main()

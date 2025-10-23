@@ -28,13 +28,11 @@ model User {
   posts          Post[]
   redeemLogs     RedeemLog[]
   redeemRequests RedeemRequest[]
-  userActions    UserPostAction[]
-  wishes         Wish[]
-  accounts       Account[]
-  sessions       Session[]
-  referrals      User[]            @relation("UserReferrals")
-  referrer       User?             @relation("UserReferrals", fields: [referredBy], references: [id])
   userLimits     UserLimit[]
+  userActions    UserPostAction[]
+  referrer       User?             @relation("UserReferrals", fields: [referredBy], references: [id])
+  referrals      User[]            @relation("UserReferrals")
+  wishes         Wish[]
 
   @@map("users")
 }
@@ -84,24 +82,17 @@ model PointLog {
 }
 
 model UserLimit {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
   limitType LimitType
-  period    DateTime // Start of period (week for weekly limits, day for daily limits)
-  count     Int      @default(0) // Number of bonuses this period
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id])
+  period    DateTime
+  count     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
 
   @@unique([userId, limitType, period])
   @@map("user_limits")
-}
-
-enum LimitType {
-  REFERRAL_WEEKLY    // Weekly referral bonus limit
-  POST_WEEKLY        // Weekly post creation bonus limit
-  WISH_WEEKLY        // Weekly wish creation bonus limit
-  SHARE_DAILY        // Daily share bonus limit
 }
 
 model RedeemLog {
@@ -134,11 +125,11 @@ model Reward {
   id             String          @id @default(uuid())
   name           String
   description    String
-  pointsRequired Int             // Điểm năng lượng cần thiết
-  lifeRequired   Int?            // Nhịp sống cần thiết (null nếu chỉ dùng điểm)
+  pointsRequired Int
+  lifeRequired   Int?
   imageUrl       String?
   isActive       Boolean         @default(true)
-  maxPerUser     Int?            // Giới hạn số lần đổi per user (null = không giới hạn)
+  maxPerUser     Int?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   redeemRequests RedeemRequest[]
@@ -177,6 +168,13 @@ model RedeemRequest {
 }
 
 
+enum LimitType {
+  REFERRAL_WEEKLY
+  POST_WEEKLY
+  WISH_WEEKLY
+  SHARE_DAILY
+}
+
 enum LoginMethod {
   LOCAL
   GOOGLE
@@ -211,44 +209,4 @@ enum RedeemStatus {
   APPROVED
   REJECTED
   DELIVERED
-}
-
-// NextAuth.js models
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@map("accounts")
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-  @@map("verification_tokens")
 }

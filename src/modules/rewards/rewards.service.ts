@@ -10,7 +10,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class RewardsService {
   constructor(private prisma: PrismaService) {}
 
-  async getAllRewards(page = 1, limit = 20, isActive?: boolean) {
+  async getAllRewards(
+    page = 1,
+    limit = 20,
+    isActive?: boolean,
+    userId?: string,
+  ) {
     // Convert string parameters to numbers
     const pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
     const limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
@@ -29,8 +34,58 @@ export class RewardsService {
       this.prisma.reward.count({ where }),
     ]);
 
+    // Get user data if userId is provided
+    let userData = null;
+    if (userId) {
+      try {
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            points: true,
+            redeemRequests: {
+              select: {
+                id: true,
+                rewardId: true,
+                status: true,
+              },
+            },
+          },
+        });
+
+        if (user) {
+          userData = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            points: user.points,
+            lifePoints: Math.floor(user.points / 1000), // Convert points to life points
+            redeemRequests: user.redeemRequests,
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        // Continue without user data if there's an error
+      }
+    }
+
+    // If no user data, provide default values
+    if (!userData) {
+      userData = {
+        id: null,
+        name: null,
+        email: null,
+        points: 0,
+        lifePoints: 0,
+        redeemRequests: [],
+      };
+    }
+
     return {
       data: rewards,
+      user: userData,
       total,
       page: pageNum,
       limit: limitNum,

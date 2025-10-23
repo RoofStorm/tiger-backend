@@ -23,8 +23,6 @@ import { WISH_LIMITS } from '../../constants/points';
 
 @ApiTags('Wishes')
 @Controller('api/wishes')
-@UseGuards(NextAuthGuard)
-@ApiBearerAuth()
 export class WishesController {
   constructor(
     private readonly wishesService: WishesService,
@@ -32,6 +30,8 @@ export class WishesController {
   ) {}
 
   @Post()
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new wish' })
   @ApiResponse({
     status: 201,
@@ -59,6 +59,8 @@ export class WishesController {
   }
 
   @Get()
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all wishes (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -75,9 +77,7 @@ export class WishesController {
   }
 
   @Get('highlighted')
-  @UseGuards(NextAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get highlighted wishes' })
+  @ApiOperation({ summary: 'Get highlighted wishes (public)' })
   @ApiResponse({
     status: 200,
     description: 'Highlighted wishes retrieved successfully',

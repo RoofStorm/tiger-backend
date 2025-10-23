@@ -24,12 +24,12 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Storage')
 @Controller('api/storage')
-@UseGuards(NextAuthGuard)
-@ApiBearerAuth()
 export class StorageController {
   constructor(private readonly storageService: StorageService) {}
 
   @Post('upload')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload file to S3' })
@@ -40,6 +40,8 @@ export class StorageController {
   }
 
   @Post('upload/cloudinary')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload file to Cloudinary' })
@@ -50,6 +52,8 @@ export class StorageController {
   }
 
   @Post('presigned-url')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate presigned URL for direct upload' })
   @ApiResponse({
     status: 201,
@@ -66,6 +70,8 @@ export class StorageController {
   }
 
   @Post('sign')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate signed URL for upload' })
   @ApiResponse({
     status: 201,
@@ -82,7 +88,7 @@ export class StorageController {
   }
 
   @Get('video/:filename')
-  @ApiOperation({ summary: 'Get video from MinIO' })
+  @ApiOperation({ summary: 'Get video from MinIO (public)' })
   @ApiResponse({
     status: 200,
     description: 'Video streamed successfully',
@@ -133,7 +139,9 @@ export class StorageController {
   }
 
   @Get('video-stream/:filename')
-  @ApiOperation({ summary: 'Stream video from MinIO with range support' })
+  @ApiOperation({
+    summary: 'Stream video from MinIO with range support (public)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Video streamed successfully',

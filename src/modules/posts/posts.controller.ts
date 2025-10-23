@@ -61,6 +61,23 @@ export class PostsController {
     );
   }
 
+  @Get('highlighted')
+  @ApiOperation({ summary: 'Get highlighted posts (public)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Highlighted posts retrieved successfully',
+  })
+  async getHighlightedPosts() {
+    return this.postsService.findAll(
+      {
+        highlighted: true,
+        page: 1,
+        limit: 20,
+      },
+      undefined, // No user ID for public access
+    );
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get post by ID (public)' })
   @ApiResponse({ status: 200, description: 'Post retrieved successfully' })

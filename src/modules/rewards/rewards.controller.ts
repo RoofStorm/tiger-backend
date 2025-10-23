@@ -21,20 +21,21 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Rewards')
 @Controller('api/rewards')
-@UseGuards(NextAuthGuard)
-@ApiBearerAuth()
 export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all rewards' })
+  @ApiOperation({ summary: 'Get all rewards (public with optional user data)' })
   @ApiResponse({ status: 200, description: 'Rewards retrieved successfully' })
   async getAllRewards(
     @Query('page') page = 1,
     @Query('limit') limit = 20,
     @Query('isActive') isActive?: boolean,
+    @Request() req?: any,
   ) {
-    return this.rewardsService.getAllRewards(page, limit, isActive);
+    // If user is authenticated, include user-specific data
+    const userId = req?.user?.id;
+    return this.rewardsService.getAllRewards(page, limit, isActive, userId);
   }
 
   @Get(':id')
