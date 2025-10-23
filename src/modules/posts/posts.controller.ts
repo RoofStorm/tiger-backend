@@ -62,12 +62,20 @@ export class PostsController {
   }
 
   @Get(':id')
-  @UseGuards(NextAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get post by ID' })
+  @ApiOperation({ summary: 'Get post by ID (public)' })
   @ApiResponse({ status: 200, description: 'Post retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async findOne(@Param('id') id: string) {
+    return this.postsService.findOne(id);
+  }
+
+  @Get(':id/authenticated')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get post by ID (authenticated)' })
+  @ApiResponse({ status: 200, description: 'Post retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Post not found' })
+  async findOneAuthenticated(@Param('id') id: string) {
     return this.postsService.findOne(id);
   }
 
