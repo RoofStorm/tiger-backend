@@ -165,4 +165,23 @@ export class StorageController {
       res.status(404).json({ message: 'Video not found' });
     }
   }
+
+  @Get('video-signed/:filename')
+  @ApiOperation({ summary: 'Get signed URL for video from MinIO (public)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Signed URL generated successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found',
+  })
+  async getSignedVideoUrl(@Param('filename') filename: string) {
+    try {
+      const signedUrl = await this.storageService.getSignedVideoUrl(filename);
+      return { url: signedUrl };
+    } catch (error) {
+      throw new Error(`Failed to generate signed URL for: ${filename}`);
+    }
+  }
 }

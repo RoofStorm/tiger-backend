@@ -148,4 +148,39 @@ export class StorageService {
       throw new Error(`Video not found: ${filename}`);
     }
   }
+
+  async getSignedVideoUrl(
+    filename: string,
+    expirySeconds = 3600,
+  ): Promise<string> {
+    const bucket = this.configService.get('S3_BUCKET');
+    const endpoint = this.configService.get('S3_ENDPOINT');
+
+    const params = {
+      Bucket: bucket,
+      Key: `tiger-videos/${filename}`,
+      Expires: expirySeconds, // URL hết hạn sau 1 giờ
+      ResponseContentDisposition: 'inline', // Hiển thị inline thay vì download
+      ResponseContentType: 'video/mp4', // Set content type cho video
+    };
+
+    try {
+      // Tạo signed URL từ MinIO (S3-compatible)
+      let signedUrl = await this.s3.getSignedUrlPromise('getObject', params);
+
+      // Fix MinIO signed URL: Replace the endpoint in the signed URL
+      // AWS SDK returns URL with s3.amazonaws.com, we need to replace it with MinIO endpoint
+      if (endpoint) {
+        const minioEndpoint = endpoint
+          .replace(/^https?:\/\//, '')
+          .replace(/^http:\/\//, '');
+        signedUrl = signedUrl.replace(/s3\.amazonaws\.com/, minioEndpoint);
+        signedUrl = signedUrl.replace(/amazonaws\.com/, minioEndpoint);
+      }
+
+      return signedUrl;
+    } catch (error) {
+      throw new Error(`Failed to generate signed URL for: ${filename}`);
+    }
+  }
 }
