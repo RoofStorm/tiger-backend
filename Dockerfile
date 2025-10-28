@@ -11,8 +11,8 @@ COPY prisma ./prisma/
 # Install ALL dependencies (including devDependencies for build)
 RUN npm ci
 
-# Copy remaining files (tsconfig, nest-cli, src, etc.)
-COPY tsconfig.json nest-cli.json ./
+# Copy remaining files (tsconfig, nest-cli, src)
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY src ./src
 
 # Generate Prisma client
