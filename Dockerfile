@@ -1,6 +1,9 @@
 # Stage 1: Build stage
 FROM node:18-alpine AS builder
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl openssl-dev
+
 # Set working directory
 WORKDIR /app
 
@@ -26,6 +29,9 @@ FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl openssl-dev
 
 # Copy package files
 COPY package*.json ./
