@@ -113,8 +113,30 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
 
-    // Daily login bonus is now handled by Frontend auth.ts
-    // to implement Redis caching and prevent duplicates
+    // Award daily login bonus (automatically handles duplicate prevention)
+    try {
+      await this.pointsService.awardPoints(
+        user.id,
+        POINTS.DAILY_LOGIN_BONUS,
+        'Daily login bonus',
+      );
+      console.log(
+        `🎁 Daily login bonus awarded to ${user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
+      );
+    } catch (error) {
+      // Silently fail if daily bonus already awarded or limit reached
+      // This prevents login failure due to bonus issues
+      if (error instanceof BadRequestException) {
+        console.log(
+          `ℹ️ Daily login bonus already awarded today for ${user.email}`,
+        );
+      } else {
+        console.error(
+          `❌ Error awarding daily login bonus to ${user.email}:`,
+          error,
+        );
+      }
+    }
 
     return {
       ...tokens,
