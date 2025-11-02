@@ -76,6 +76,34 @@ export class ActionsService {
       }
 
       // Handle other actions (SHARE) normally
+      // For SHARE, use upsert to allow sharing multiple times
+      if (type === ActionType.SHARE) {
+        const action = await this.prisma.userPostAction.upsert({
+          where: {
+            userId_postId_type: {
+              userId,
+              postId,
+              type: ActionType.SHARE,
+            },
+          },
+          update: {
+            // Update timestamp when sharing again
+            createdAt: new Date(),
+          },
+          create: {
+            userId,
+            postId,
+            type: ActionType.SHARE,
+          },
+        });
+
+        // Update global counts for sharing
+        // Points are awarded separately via shareService.awardShareBonus in controller
+        await this.postsService.recalculateAllCounts(postId);
+
+        return action;
+      }
+
       const action = await this.prisma.userPostAction.create({
         data: {
           userId,
@@ -83,12 +111,6 @@ export class ActionsService {
           type,
         },
       });
-
-      // Update global counts and award points for sharing
-      if (type === ActionType.SHARE) {
-        await this.postsService.recalculateAllCounts(postId);
-        await this.pointsService.awardPoints(userId, 10, 'Share post');
-      }
 
       return action;
     } catch (error) {

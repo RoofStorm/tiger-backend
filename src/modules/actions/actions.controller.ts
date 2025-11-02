@@ -45,9 +45,8 @@ export class ActionsController {
   }
 
   @Post(':id/share')
-  @ApiOperation({ summary: 'Share a post' })
+  @ApiOperation({ summary: 'Share a post (can share multiple times)' })
   @ApiResponse({ status: 201, description: 'Post shared successfully' })
-  @ApiResponse({ status: 409, description: 'Post already shared' })
   @ApiResponse({ status: 404, description: 'Post not found' })
   async sharePost(@Param('id') postId: string, @Request() req) {
     const result = await this.actionsService.createAction(

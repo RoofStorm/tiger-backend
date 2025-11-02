@@ -1,0 +1,54 @@
+app = "tiger-minio"
+primary_region = "sin"
+
+[build]
+  image = "minio/minio:latest"
+
+[env]
+  MINIO_BROWSER = "on"
+  MINIO_SERVER_URL = "https://tiger-minio.fly.dev"
+
+[processes]
+  app = "server /data --console-address :9001"
+
+[[mounts]]
+  source = "minio_data"
+  destination = "/data"
+
+# MinIO S3 API service
+[[services]]
+  internal_port = 9000
+  protocol = "tcp"
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+    force_https = false
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 2000
+    soft_limit = 1000
+
+# MinIO Console UI service
+[[services]]
+  internal_port = 9001
+  protocol = "tcp"
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 9001
+    handlers = ["tls"]
+    force_https = false
+
+[checks.s3]
+  port = 9000
+  type = "http"
+  interval = "10s"
+  timeout = "2s"
+  path = "/minio/health/live"
