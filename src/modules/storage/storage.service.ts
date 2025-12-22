@@ -49,8 +49,8 @@ export class StorageService {
       const endpoint = this.configService.get('S3_ENDPOINT');
       const bucket = this.configService.get('S3_BUCKET');
       const region = this.configService.get('S3_REGION') || 'us-east-1';
-      const accessKeyId = this.configService.get('MINIO_ROOT_USER') || this.configService.get('S3_ACCESS_KEY_ID') ;
-      const secretAccessKey = this.configService.get('MINIO_ROOT_PASSWORD') || this.configService.get('S3_SECRET_ACCESS_KEY');
+      const accessKeyId = this.configService.get('MINIO_ROOT_USER');
+      const secretAccessKey = this.configService.get('MINIO_ROOT_PASSWORD');
 
       // Debug logging
       console.log('🔍 Storage Config Check:', {
@@ -65,13 +65,9 @@ export class StorageService {
 
       // Check if credentials are configured
       if (!accessKeyId || !secretAccessKey) {
-        const missingVars = [];
-        if (!accessKeyId) missingVars.push('MINIO_ROOT_USER');
-        if (!secretAccessKey) missingVars.push('MINIO_ROOT_PASSWORD');
-        
         return {
           success: false,
-          message: `${missingVars.join(' and ')} ${missingVars.length > 1 ? 'are' : 'is'} not configured. Please set these environment variables in your .env file or system environment.`,
+          message: 'MINIO_ROOT_USER or MINIO_ROOT_PASSWORD is not configured',
           config: {
             endpoint: endpoint || 'not set',
             bucket: bucket || 'not set',
