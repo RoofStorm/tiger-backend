@@ -16,8 +16,8 @@ export class StorageService {
     this.s3 = new AWS.S3({
       endpoint: endpoint,
       region: region,
-      accessKeyId: this.configService.get('MINIO_ROOT_USER'),
-      secretAccessKey: this.configService.get('MINIO_ROOT_PASSWORD'),
+      accessKeyId: this.configService.get('MINIO_ROOT_USER') || this.configService.get('S3_ACCESS_KEY_ID'),
+      secretAccessKey: this.configService.get('MINIO_ROOT_PASSWORD') || this.configService.get('S3_SECRET_ACCESS_KEY'),
       s3ForcePathStyle: true, // Required for MinIO
       // signatureVersion: 'v4', // MinIO requires v4 signature
       signatureCache: false, // Disable signature cache to avoid stale signatures
@@ -49,14 +49,29 @@ export class StorageService {
       const endpoint = this.configService.get('S3_ENDPOINT');
       const bucket = this.configService.get('S3_BUCKET');
       const region = this.configService.get('S3_REGION') || 'us-east-1';
-      const accessKeyId = this.configService.get('MINIO_ROOT_USER');
-      const secretAccessKey = this.configService.get('MINIO_ROOT_PASSWORD');
+      const accessKeyId = this.configService.get('MINIO_ROOT_USER') || this.configService.get('S3_ACCESS_KEY_ID') ;
+      const secretAccessKey = this.configService.get('MINIO_ROOT_PASSWORD') || this.configService.get('S3_SECRET_ACCESS_KEY');
+
+      // Debug logging
+      console.log('🔍 Storage Config Check:', {
+        endpoint,
+        bucket,
+        region,
+        hasAccessKeyId: !!accessKeyId,
+        hasSecretKey: !!secretAccessKey,
+        accessKeyIdLength: accessKeyId?.length || 0,
+        secretKeyLength: secretAccessKey?.length || 0,
+      });
 
       // Check if credentials are configured
       if (!accessKeyId || !secretAccessKey) {
+        const missingVars = [];
+        if (!accessKeyId) missingVars.push('MINIO_ROOT_USER');
+        if (!secretAccessKey) missingVars.push('MINIO_ROOT_PASSWORD');
+        
         return {
           success: false,
-          message: 'MINIO_ROOT_USER or MINIO_ROOT_PASSWORD is not configured',
+          message: `${missingVars.join(' and ')} ${missingVars.length > 1 ? 'are' : 'is'} not configured. Please set these environment variables in your .env file or system environment.`,
           config: {
             endpoint: endpoint || 'not set',
             bucket: bucket || 'not set',
