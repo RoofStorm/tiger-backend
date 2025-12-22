@@ -138,9 +138,14 @@ export class AuthService {
       }
     }
 
+    // Reload user to get updated points value
+    const updatedUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
     return {
       ...tokens,
-      user: this.usersService.sanitizeUser(user),
+      user: this.usersService.sanitizeUser(updatedUser || user),
     };
   }
 

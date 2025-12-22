@@ -9,13 +9,18 @@ export class StorageService {
   private cloudinaryConfigured = false;
 
   constructor(private configService: ConfigService) {
-    // Initialize S3
+    // Initialize S3 with MinIO-compatible configuration
+    const endpoint = this.configService.get('S3_ENDPOINT');
+    const region = this.configService.get('S3_REGION') || 'us-east-1';
+    
     this.s3 = new AWS.S3({
-      endpoint: this.configService.get('S3_ENDPOINT'),
-      region: this.configService.get('S3_REGION'),
+      endpoint: endpoint,
+      region: region,
       accessKeyId: this.configService.get('S3_ACCESS_KEY_ID'),
       secretAccessKey: this.configService.get('S3_SECRET_ACCESS_KEY'),
-      s3ForcePathStyle: true,
+      s3ForcePathStyle: true, // Required for MinIO
+      signatureVersion: 'v4', // MinIO requires v4 signature
+      signatureCache: false, // Disable signature cache to avoid stale signatures
     });
 
     // Initialize Cloudinary
@@ -23,6 +28,94 @@ export class StorageService {
     if (cloudinaryUrl) {
       cloudinary.config(cloudinaryUrl);
       this.cloudinaryConfigured = true;
+    }
+  }
+
+  /**
+   * Test S3/MinIO connection and credentials
+   */
+  async testConnection(): Promise<{
+    success: boolean;
+    message: string;
+    config?: {
+      endpoint: string;
+      bucket: string;
+      region: string;
+      accessKeyId: string;
+      hasSecretKey: boolean;
+    };
+  }> {
+    try {
+      const endpoint = this.configService.get('S3_ENDPOINT');
+      const bucket = this.configService.get('S3_BUCKET');
+      const region = this.configService.get('S3_REGION') || 'us-east-1';
+      const accessKeyId = this.configService.get('S3_ACCESS_KEY_ID');
+      const secretAccessKey = this.configService.get('S3_SECRET_ACCESS_KEY');
+
+      // Check if credentials are configured
+      if (!accessKeyId || !secretAccessKey) {
+        return {
+          success: false,
+          message: 'S3_ACCESS_KEY_ID or S3_SECRET_ACCESS_KEY is not configured',
+          config: {
+            endpoint: endpoint || 'not set',
+            bucket: bucket || 'not set',
+            region,
+            accessKeyId: accessKeyId || 'not set',
+            hasSecretKey: !!secretAccessKey,
+          },
+        };
+      }
+
+      // Try to list buckets to verify credentials
+      await this.s3.listBuckets().promise();
+
+      // Check if bucket exists
+      try {
+        await this.s3.headBucket({ Bucket: bucket }).promise();
+      } catch (error) {
+        return {
+          success: false,
+          message: `Bucket "${bucket}" does not exist or is not accessible. Please create it in MinIO console.`,
+          config: {
+            endpoint: endpoint || 'not set',
+            bucket,
+            region,
+            accessKeyId,
+            hasSecretKey: true,
+          },
+        };
+      }
+
+      return {
+        success: true,
+        message: 'Connection successful',
+        config: {
+          endpoint: endpoint || 'not set',
+          bucket,
+          region,
+          accessKeyId,
+          hasSecretKey: true,
+        },
+      };
+    } catch (error: any) {
+      const endpoint = this.configService.get('S3_ENDPOINT');
+      const bucket = this.configService.get('S3_BUCKET');
+      const region = this.configService.get('S3_REGION') || 'us-east-1';
+      const accessKeyId = this.configService.get('S3_ACCESS_KEY_ID');
+      const secretAccessKey = this.configService.get('S3_SECRET_ACCESS_KEY');
+
+      return {
+        success: false,
+        message: `Connection failed: ${error.message || error.code || 'Unknown error'}. Check your credentials and endpoint.`,
+        config: {
+          endpoint: endpoint || 'not set',
+          bucket: bucket || 'not set',
+          region,
+          accessKeyId: accessKeyId || 'not set',
+          hasSecretKey: !!secretAccessKey,
+        },
+      };
     }
   }
 
@@ -41,8 +134,40 @@ export class StorageService {
       ACL: 'public-read',
     };
 
-    const result = await this.s3.upload(params).promise();
-    return result.Location;
+    try {
+      const result = await this.s3.upload(params).promise();
+      return result.Location;
+    } catch (error: any) {
+      // Enhanced error logging for debugging
+      const endpoint = this.configService.get('S3_ENDPOINT');
+      const accessKeyId = this.configService.get('S3_ACCESS_KEY_ID');
+      
+      console.error('S3 Upload Error:', {
+        code: error.code,
+        message: error.message,
+        statusCode: error.statusCode,
+        endpoint,
+        bucket,
+        accessKeyId: accessKeyId ? `${accessKeyId.substring(0, 4)}...` : 'not set',
+        hasSecretKey: !!this.configService.get('S3_SECRET_ACCESS_KEY'),
+      });
+
+      // Provide more helpful error messages
+      if (error.code === 'InvalidAccessKeyId' || error.code === 'SignatureDoesNotMatch') {
+        throw new Error(
+          `S3 credentials are invalid. Please check S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY. ` +
+          `Endpoint: ${endpoint}, AccessKeyId: ${accessKeyId ? 'configured' : 'not set'}`
+        );
+      }
+      
+      if (error.code === 'NoSuchBucket') {
+        throw new Error(
+          `Bucket "${bucket}" does not exist. Please create it in MinIO console.`
+        );
+      }
+
+      throw error;
+    }
   }
 
   async uploadToCloudinary(
@@ -90,7 +215,22 @@ export class StorageService {
       Expires: 3600, // 1 hour
     };
 
-    const signedUrl = await this.s3.getSignedUrlPromise('putObject', params);
+    let signedUrl = await this.s3.getSignedUrlPromise('putObject', params);
+
+    // Fix MinIO signed URL: Replace AWS endpoint with MinIO endpoint
+    if (endpoint) {
+      try {
+        const url = new URL(endpoint);
+        const minioHost = url.host;
+        signedUrl = signedUrl.replace(/s3[.-]?[a-z0-9-]*\.amazonaws\.com/, minioHost);
+        signedUrl = signedUrl.replace(/amazonaws\.com/, minioHost);
+      } catch (error) {
+        // If endpoint is not a valid URL, try to extract host manually
+        const minioHost = endpoint.replace(/^https?:\/\//, '').split('/')[0];
+        signedUrl = signedUrl.replace(/s3[.-]?[a-z0-9-]*\.amazonaws\.com/, minioHost);
+        signedUrl = signedUrl.replace(/amazonaws\.com/, minioHost);
+      }
+    }
 
     // Generate public URL for MinIO
     const publicUrl = `${endpoint}/${bucket}/${key}`;
@@ -168,14 +308,20 @@ export class StorageService {
       // Tạo signed URL từ MinIO (S3-compatible)
       let signedUrl = await this.s3.getSignedUrlPromise('getObject', params);
 
-      // Fix MinIO signed URL: Replace the endpoint in the signed URL
+      // Fix MinIO signed URL: Replace AWS endpoint with MinIO endpoint
       // AWS SDK returns URL with s3.amazonaws.com, we need to replace it with MinIO endpoint
       if (endpoint) {
-        const minioEndpoint = endpoint
-          .replace(/^https?:\/\//, '')
-          .replace(/^http:\/\//, '');
-        signedUrl = signedUrl.replace(/s3\.amazonaws\.com/, minioEndpoint);
-        signedUrl = signedUrl.replace(/amazonaws\.com/, minioEndpoint);
+        try {
+          const url = new URL(endpoint);
+          const minioHost = url.host;
+          signedUrl = signedUrl.replace(/s3[.-]?[a-z0-9-]*\.amazonaws\.com/, minioHost);
+          signedUrl = signedUrl.replace(/amazonaws\.com/, minioHost);
+        } catch (error) {
+          // If endpoint is not a valid URL, try to extract host manually
+          const minioHost = endpoint.replace(/^https?:\/\//, '').split('/')[0];
+          signedUrl = signedUrl.replace(/s3[.-]?[a-z0-9-]*\.amazonaws\.com/, minioHost);
+          signedUrl = signedUrl.replace(/amazonaws\.com/, minioHost);
+        }
       }
 
       return signedUrl;

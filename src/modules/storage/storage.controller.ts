@@ -184,4 +184,16 @@ export class StorageController {
       throw new Error(`Failed to generate signed URL for: ${filename}`);
     }
   }
+
+  @Get('test-connection')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Test S3/MinIO connection and credentials' })
+  @ApiResponse({
+    status: 200,
+    description: 'Connection test result',
+  })
+  async testConnection() {
+    return await this.storageService.testConnection();
+  }
 }
