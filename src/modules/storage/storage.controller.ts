@@ -186,9 +186,7 @@ export class StorageController {
   }
 
   @Get('test-connection')
-  @UseGuards(NextAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Test S3/MinIO connection and credentials' })
+  @ApiOperation({ summary: 'Test S3/MinIO connection and credentials (public)' })
   @ApiResponse({
     status: 200,
     description: 'Connection test result',
