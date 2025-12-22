@@ -16,10 +16,10 @@ export class StorageService {
     this.s3 = new AWS.S3({
       endpoint: endpoint,
       region: region,
-      accessKeyId: this.configService.get('S3_ACCESS_KEY_ID'),
-      secretAccessKey: this.configService.get('S3_SECRET_ACCESS_KEY'),
+      accessKeyId: this.configService.get('MINIO_ROOT_USER'),
+      secretAccessKey: this.configService.get('MINIO_ROOT_PASSWORD'),
       s3ForcePathStyle: true, // Required for MinIO
-      signatureVersion: 'v4', // MinIO requires v4 signature
+      // signatureVersion: 'v4', // MinIO requires v4 signature
       signatureCache: false, // Disable signature cache to avoid stale signatures
     });
 
@@ -49,14 +49,14 @@ export class StorageService {
       const endpoint = this.configService.get('S3_ENDPOINT');
       const bucket = this.configService.get('S3_BUCKET');
       const region = this.configService.get('S3_REGION') || 'us-east-1';
-      const accessKeyId = this.configService.get('S3_ACCESS_KEY_ID');
-      const secretAccessKey = this.configService.get('S3_SECRET_ACCESS_KEY');
+      const accessKeyId = this.configService.get('MINIO_ROOT_USER');
+      const secretAccessKey = this.configService.get('MINIO_ROOT_PASSWORD');
 
       // Check if credentials are configured
       if (!accessKeyId || !secretAccessKey) {
         return {
           success: false,
-          message: 'S3_ACCESS_KEY_ID or S3_SECRET_ACCESS_KEY is not configured',
+          message: 'MINIO_ROOT_USER or MINIO_ROOT_PASSWORD is not configured',
           config: {
             endpoint: endpoint || 'not set',
             bucket: bucket || 'not set',
@@ -102,8 +102,8 @@ export class StorageService {
       const endpoint = this.configService.get('S3_ENDPOINT');
       const bucket = this.configService.get('S3_BUCKET');
       const region = this.configService.get('S3_REGION') || 'us-east-1';
-      const accessKeyId = this.configService.get('S3_ACCESS_KEY_ID');
-      const secretAccessKey = this.configService.get('S3_SECRET_ACCESS_KEY');
+      const accessKeyId = this.configService.get('MINIO_ROOT_USER');
+      const secretAccessKey = this.configService.get('MINIO_ROOT_PASSWORD');
 
       return {
         success: false,
@@ -140,7 +140,7 @@ export class StorageService {
     } catch (error: any) {
       // Enhanced error logging for debugging
       const endpoint = this.configService.get('S3_ENDPOINT');
-      const accessKeyId = this.configService.get('S3_ACCESS_KEY_ID');
+      const accessKeyId = this.configService.get('MINIO_ROOT_USER');
       
       console.error('S3 Upload Error:', {
         code: error.code,
@@ -149,13 +149,13 @@ export class StorageService {
         endpoint,
         bucket,
         accessKeyId: accessKeyId ? `${accessKeyId.substring(0, 4)}...` : 'not set',
-        hasSecretKey: !!this.configService.get('S3_SECRET_ACCESS_KEY'),
+        hasSecretKey: !!this.configService.get('MINIO_ROOT_PASSWORD'),
       });
 
       // Provide more helpful error messages
       if (error.code === 'InvalidAccessKeyId' || error.code === 'SignatureDoesNotMatch') {
         throw new Error(
-          `S3 credentials are invalid. Please check S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY. ` +
+          `S3 credentials are invalid. Please check MINIO_ROOT_USER and MINIO_ROOT_PASSWORD. ` +
           `Endpoint: ${endpoint}, AccessKeyId: ${accessKeyId ? 'configured' : 'not set'}`
         );
       }
