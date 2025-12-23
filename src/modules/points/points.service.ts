@@ -124,7 +124,7 @@ export class PointsService {
     // Business rules for daily limits
     const limits = {
       'Daily login bonus': 1,
-      'Share post': 1,
+      // 'Share post': 1, // Removed - share is now weekly limit only
       'Like post': 10, // Allow up to 10 likes per day
       'Unlike post': 10, // Allow up to 10 unlikes per day
       'Create post': 5, // Allow up to 5 posts per day

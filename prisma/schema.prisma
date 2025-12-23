@@ -169,10 +169,9 @@ model RedeemRequest {
 
 
 enum LimitType {
-  REFERRAL_WEEKLY
   POST_WEEKLY
   WISH_WEEKLY
-  SHARE_DAILY
+  SHARE_WEEKLY
 }
 
 enum LoginMethod {

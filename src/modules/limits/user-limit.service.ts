@@ -4,7 +4,7 @@ import { PointsService } from '../points/points.service';
 import { LimitType } from '@prisma/client';
 import {
   POINTS,
-  REFERRAL_LIMITS,
+  // REFERRAL_LIMITS, // Disabled - no points for referrals
   POST_LIMITS,
   WISH_LIMITS,
   SHARE_LIMITS,
@@ -37,12 +37,10 @@ export class UserLimitService {
   // Get period based on limit type
   private getPeriod(limitType: LimitType): Date {
     switch (limitType) {
-      case LimitType.REFERRAL_WEEKLY:
       case LimitType.POST_WEEKLY:
       case LimitType.WISH_WEEKLY:
+      case LimitType.SHARE_WEEKLY:
         return this.getWeekStart();
-      case LimitType.SHARE_DAILY:
-        return this.getTodayDate();
       default:
         throw new Error(`Unknown limit type: ${limitType}`);
     }
@@ -70,17 +68,14 @@ export class UserLimitService {
     // Get limit based on type
     let maxCount: number;
     switch (limitType) {
-      case LimitType.REFERRAL_WEEKLY:
-        maxCount = REFERRAL_LIMITS.WEEKLY_POINTS_LIMIT;
-        break;
       case LimitType.POST_WEEKLY:
         maxCount = POST_LIMITS.WEEKLY_POST_POINTS_LIMIT;
         break;
       case LimitType.WISH_WEEKLY:
         maxCount = WISH_LIMITS.WEEKLY_WISH_POINTS_LIMIT;
         break;
-      case LimitType.SHARE_DAILY:
-        maxCount = SHARE_LIMITS.DAILY_SHARE_POINTS_LIMIT;
+      case LimitType.SHARE_WEEKLY:
+        maxCount = SHARE_LIMITS.WEEKLY_SHARE_POINTS_LIMIT;
         break;
       default:
         throw new Error(`Unknown limit type: ${limitType}`);
@@ -109,17 +104,14 @@ export class UserLimitService {
       // Get points based on type
       let points: number;
       switch (limitType) {
-        case LimitType.REFERRAL_WEEKLY:
-          points = POINTS.REFERRAL_BONUS;
-          break;
         case LimitType.POST_WEEKLY:
           points = POINTS.POST_CREATION;
           break;
         case LimitType.WISH_WEEKLY:
           points = POINTS.WISH_CREATION;
           break;
-        case LimitType.SHARE_DAILY:
-          points = POINTS.POST_SHARE;
+        case LimitType.SHARE_WEEKLY:
+          points = POINTS.FACEBOOK_SHARE;
           break;
         default:
           throw new Error(`Unknown limit type: ${limitType}`);
@@ -199,10 +191,6 @@ export class UserLimitService {
     let maxCount: number;
     let pointsPerAction: number;
     switch (limitType) {
-      case LimitType.REFERRAL_WEEKLY:
-        maxCount = REFERRAL_LIMITS.WEEKLY_POINTS_LIMIT;
-        pointsPerAction = POINTS.REFERRAL_BONUS;
-        break;
       case LimitType.POST_WEEKLY:
         maxCount = POST_LIMITS.WEEKLY_POST_POINTS_LIMIT;
         pointsPerAction = POINTS.POST_CREATION;
@@ -211,9 +199,9 @@ export class UserLimitService {
         maxCount = WISH_LIMITS.WEEKLY_WISH_POINTS_LIMIT;
         pointsPerAction = POINTS.WISH_CREATION;
         break;
-      case LimitType.SHARE_DAILY:
-        maxCount = SHARE_LIMITS.DAILY_SHARE_POINTS_LIMIT;
-        pointsPerAction = POINTS.POST_SHARE;
+      case LimitType.SHARE_WEEKLY:
+        maxCount = SHARE_LIMITS.WEEKLY_SHARE_POINTS_LIMIT;
+        pointsPerAction = POINTS.FACEBOOK_SHARE;
         break;
       default:
         throw new Error(`Unknown limit type: ${limitType}`);
@@ -234,17 +222,15 @@ export class UserLimitService {
   // Get all limits stats for a user
   async getAllLimitsStats(userId: string) {
     const stats = await Promise.all([
-      this.getLimitStats(userId, LimitType.REFERRAL_WEEKLY),
       this.getLimitStats(userId, LimitType.POST_WEEKLY),
       this.getLimitStats(userId, LimitType.WISH_WEEKLY),
-      this.getLimitStats(userId, LimitType.SHARE_DAILY),
+      this.getLimitStats(userId, LimitType.SHARE_WEEKLY),
     ]);
 
     return {
-      referral: stats[0],
-      post: stats[1],
-      wish: stats[2],
-      share: stats[3],
+      post: stats[0],
+      wish: stats[1],
+      share: stats[2],
     };
   }
 }

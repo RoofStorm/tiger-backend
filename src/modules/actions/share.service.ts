@@ -11,53 +11,47 @@ export class ShareService {
     private userLimitService: UserLimitService,
   ) {}
 
-  // Check if user can receive share bonus today
+  // Check if user can receive Facebook share bonus this week
   async canReceiveShareBonus(userId: string): Promise<boolean> {
-    return this.userLimitService.canReceiveBonus(userId, LimitType.SHARE_DAILY);
+    return this.userLimitService.canReceiveBonus(userId, LimitType.SHARE_WEEKLY);
   }
 
-  // Award points for sharing a post (first share per day for a unique post)
+  // Award points for sharing a post or wish to Facebook (first share per week)
   // Chỉ cộng điểm nếu:
-  // 1. Chưa đạt daily limit
-  // 2. Post này chưa được share và cộng điểm trong ngày hiện tại
-  async awardShareBonus(userId: string, postId: string): Promise<boolean> {
-    // Kiểm tra xem post này đã được share và cộng điểm chưa trong ngày hiện tại
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const existingPointLog = await this.prisma.pointLog.findFirst({
-      where: {
-        userId,
-        reason: 'Post share bonus',
-        note: `Shared post: ${postId}`,
-        createdAt: {
-          gte: today,
-          lt: tomorrow,
-        },
-      },
-    });
-
-    // Nếu post này đã được share và cộng điểm trong ngày hôm nay, không cộng điểm nữa
-    if (existingPointLog) {
+  // 1. Share lên Facebook (platform === 'facebook')
+  // 2. Chưa đạt weekly limit (cả post và wish dùng chung limit - chỉ cộng 1 lần/tuần)
+  async awardShareBonus(
+    userId: string,
+    contentId: string,
+    contentType: 'post' | 'wish',
+    platform?: string,
+  ): Promise<boolean> {
+    // Chỉ cộng điểm khi share lên Facebook
+    if (platform !== 'facebook') {
       console.log(
-        `🎁 Post ${postId} already shared and bonus awarded today for user: ${userId}`,
+        `ℹ️ Share to ${platform || 'unknown'} platform - no points awarded. Only Facebook shares earn points.`,
       );
       return false;
     }
 
-    // Kiểm tra daily limit và award bonus
+    // Cả post và wish đều dùng cùng SHARE_WEEKLY limit type
+    // Nên dù share post hay wish, chỉ được cộng 50 điểm 1 lần/tuần
+    const reason = 'Facebook share bonus'; // Dùng chung reason cho cả post và wish
+    const note =
+      contentType === 'post'
+        ? `Shared post to Facebook: ${contentId}`
+        : `Shared wish to Facebook: ${contentId}`;
+
     return this.userLimitService.awardBonus(
       userId,
-      LimitType.SHARE_DAILY,
-      'Post share bonus',
-      `Shared post: ${postId}`,
+      LimitType.SHARE_WEEKLY,
+      reason,
+      note,
     );
   }
 
   // Get share stats for user
   async getShareStats(userId: string) {
-    return this.userLimitService.getLimitStats(userId, LimitType.SHARE_DAILY);
+    return this.userLimitService.getLimitStats(userId, LimitType.SHARE_WEEKLY);
   }
 }

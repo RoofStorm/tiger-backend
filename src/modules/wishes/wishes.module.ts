@@ -5,9 +5,10 @@ import { WishesController } from './wishes.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { PointsModule } from '../points/points.module';
 import { LimitsModule } from '../limits/limits.module';
+import { ActionsModule } from '../actions/actions.module';
 
 @Module({
-  imports: [PrismaModule, PointsModule, LimitsModule],
+  imports: [PrismaModule, PointsModule, LimitsModule, ActionsModule],
   controllers: [WishesController],
   providers: [WishesService, WishService],
   exports: [WishesService, WishService],

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsString } from 'class-validator';
+import { IsEnum, IsString, IsOptional } from 'class-validator';
 import { ActionType } from '@prisma/client';
 
 export class CreateActionDto {
@@ -10,5 +10,14 @@ export class CreateActionDto {
   @ApiProperty({ example: 'post-uuid-here' })
   @IsString()
   postId: string;
+
+  @ApiProperty({
+    example: 'facebook',
+    description: 'Platform where content is shared (required for SHARE action to earn points)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  platform?: string;
 }
 

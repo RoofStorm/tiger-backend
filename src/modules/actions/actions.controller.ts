@@ -45,27 +45,37 @@ export class ActionsController {
   }
 
   @Post(':id/share')
-  @ApiOperation({ summary: 'Share a post (can share multiple times)' })
+  @ApiOperation({
+    summary: 'Share a post (can share multiple times). Share to Facebook to earn 50 points once per week.',
+  })
   @ApiResponse({ status: 201, description: 'Post shared successfully' })
   @ApiResponse({ status: 404, description: 'Post not found' })
-  async sharePost(@Param('id') postId: string, @Request() req) {
+  async sharePost(
+    @Param('id') postId: string,
+    @Body() body: { platform?: string },
+    @Request() req,
+  ) {
     const result = await this.actionsService.createAction(
-      { type: 'SHARE', postId },
+      { type: 'SHARE', postId, platform: body?.platform },
       req.user.id,
     );
 
-    // Award points for sharing (first share per day)
+    // Award points for sharing to Facebook (first share per week)
     const pointsAwarded = await this.shareService.awardShareBonus(
       req.user.id,
       postId,
+      'post',
+      body?.platform,
     );
 
     return {
       ...result,
       pointsAwarded,
       pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.DAILY_SHARE_POINTS} điểm cho việc chia sẻ bài viết đầu tiên trong ngày.`
-        : 'Bài viết đã được chia sẻ thành công. Bạn đã nhận điểm cho việc chia sẻ đầu tiên trong ngày này.',
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook đầu tiên trong tuần (dù share post hay wish, chỉ được cộng 1 lần/tuần).`
+        : body?.platform === 'facebook'
+          ? 'Bài viết đã được chia sẻ thành công. Bạn đã nhận điểm cho việc chia sẻ lên Facebook đầu tiên trong tuần này (dù share post hay wish, chỉ được cộng 1 lần/tuần).'
+          : 'Bài viết đã được chia sẻ thành công. Chỉ chia sẻ lên Facebook mới được cộng điểm (50 điểm/tuần, dù share post hay wish).',
     };
   }
 

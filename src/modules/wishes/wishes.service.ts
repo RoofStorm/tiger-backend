@@ -156,6 +156,12 @@ export class WishesService {
     });
   }
 
+  async getWishById(wishId: string) {
+    return this.prisma.wish.findUnique({
+      where: { id: wishId },
+    });
+  }
+
   async deleteWish(wishId: string, userId: string) {
     const wish = await this.prisma.wish.findUnique({
       where: { id: wishId },

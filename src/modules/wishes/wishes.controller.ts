@@ -19,7 +19,8 @@ import { WishesService } from './wishes.service';
 import { WishService } from './wish.service';
 import { CreateWishDto } from './dto/create-wish.dto';
 import { NextAuthGuard } from '../auth/guards/nextauth.guard';
-import { WISH_LIMITS } from '../../constants/points';
+import { WISH_LIMITS, SHARE_LIMITS } from '../../constants/points';
+import { ShareService } from '../actions/share.service';
 
 @ApiTags('Wishes')
 @Controller('api/wishes')
@@ -27,6 +28,7 @@ export class WishesController {
   constructor(
     private readonly wishesService: WishesService,
     private readonly wishService: WishService,
+    private readonly shareService: ShareService,
   ) {}
 
   @Post()
@@ -142,6 +144,47 @@ export class WishesController {
     return {
       success: true,
       data: stats,
+    };
+  }
+
+  @Post(':id/share')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Share a wish. Share to Facebook to earn 50 points once per week.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Wish shared successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Wish not found' })
+  async shareWish(
+    @Param('id') wishId: string,
+    @Body() body: { platform?: string },
+    @Request() req,
+  ) {
+    // Check if wish exists
+    const wish = await this.wishesService.getWishById(wishId);
+    if (!wish) {
+      throw new NotFoundException('Wish not found');
+    }
+
+    // Award points for sharing to Facebook (first share per week)
+    const pointsAwarded = await this.shareService.awardShareBonus(
+      req.user.id,
+      wishId,
+      'wish',
+      body?.platform,
+    );
+
+    return {
+      success: true,
+      pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook đầu tiên trong tuần (dù share post hay wish, chỉ được cộng 1 lần/tuần).`
+        : body?.platform === 'facebook'
+          ? 'Lời chúc đã được chia sẻ thành công. Bạn đã nhận điểm cho việc chia sẻ lên Facebook đầu tiên trong tuần này (dù share post hay wish, chỉ được cộng 1 lần/tuần).'
+          : 'Lời chúc đã được chia sẻ thành công. Chỉ chia sẻ lên Facebook mới được cộng điểm (50 điểm/tuần, dù share post hay wish).',
     };
   }
 }

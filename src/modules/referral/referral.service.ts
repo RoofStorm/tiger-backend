@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UserLimitService } from '../limits/user-limit.service';
-import { POINTS, REFERRAL_LIMITS } from '../../constants/points';
-import { LimitType } from '@prisma/client';
+// import { POINTS, REFERRAL_LIMITS } from '../../constants/points'; // Disabled - no points for referrals
 
 @Injectable()
 export class ReferralService {
@@ -117,30 +116,15 @@ export class ReferralService {
         data: { referredBy: referrer.id },
       });
 
-      // Award points to referrer using UserLimitService
-      const pointsAwarded = await this.userLimitService.awardBonus(
-        referrer.id,
-        LimitType.REFERRAL_WEEKLY,
-        'Referral bonus',
-        `Referred user: ${newUserId}`,
+      // No points awarded for referrals anymore
+      console.log(
+        `✅ Referral processed: ${referrer.email} referred ${newUserId} (no points - referral bonus disabled)`,
       );
-
-      if (pointsAwarded) {
-        console.log(
-          `✅ Referral processed: ${referrer.email} referred ${newUserId} (+${POINTS.REFERRAL_BONUS} points)`,
-        );
-      } else {
-        console.log(
-          `✅ Referral processed: ${referrer.email} referred ${newUserId} (no points - weekly limit reached)`,
-        );
-      }
 
       return {
         success: true,
-        message: pointsAwarded
-          ? `Referral processed successfully (+${POINTS.REFERRAL_BONUS} points)`
-          : 'Referral processed successfully (no points - weekly limit reached)',
-        pointsAwarded,
+        message: 'Referral processed successfully (no points - referral bonus disabled)',
+        pointsAwarded: false,
       };
     } catch (error) {
       console.error('❌ Error processing referral:', error);
@@ -210,14 +194,12 @@ export class ReferralService {
       0,
     );
 
-    // Get current week's referral count using UserLimitService
-    const limitStats = await this.userLimitService.getLimitStats(
-      userId,
-      LimitType.REFERRAL_WEEKLY,
-    );
-    const weeklyPointsAwarded = limitStats.currentCount;
-    const weeklyPointsLimit = limitStats.maxCount;
-    const canEarnMorePoints = limitStats.canEarnMorePoints;
+    // Calculate week start for weekly stats (no longer using LimitType.REFERRAL_WEEKLY)
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    const weekStart = new Date(now.setDate(diff));
+    weekStart.setHours(0, 0, 0, 0);
 
     const referralLink = this.generateReferralLink(user.referralCode);
     console.log(
@@ -231,14 +213,13 @@ export class ReferralService {
       totalEarned,
       referrals: user.referrals,
       weeklyStats: {
-        pointsAwarded: weeklyPointsAwarded,
-        pointsLimit: weeklyPointsLimit,
-        canEarnMorePoints,
-        weekStart: limitStats.period,
-        // Calculate total referrals this week (including those without points)
+        pointsAwarded: 0, // No points for referrals anymore
+        pointsLimit: 0, // No limit for referrals anymore
+        canEarnMorePoints: false, // No points for referrals anymore
+        weekStart: weekStart.toISOString(),
+        // Calculate total referrals this week
         totalReferralsThisWeek: user.referrals.filter((referral) => {
           const referralDate = new Date(referral.createdAt);
-          const weekStart = new Date(limitStats.period);
           return referralDate >= weekStart;
         }).length,
       },

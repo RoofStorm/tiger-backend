@@ -114,6 +114,7 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id);
 
     // Award daily login bonus (automatically handles duplicate prevention)
+    // Updated to 10 points per day
     try {
       await this.pointsService.awardPoints(
         user.id,
