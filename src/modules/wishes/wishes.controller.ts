@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
   Delete,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
