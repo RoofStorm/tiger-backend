@@ -208,29 +208,66 @@ export class AuthService {
     const { id, emails, displayName, photos } = profile;
     const email = emails?.[0]?.value;
 
+    // Nếu không có email, đã được xử lý ở strategy (tạo email tạm)
+    // Nhưng vẫn kiểm tra để đảm bảo an toàn
     if (!email) {
       throw new BadRequestException(
         'Không thể lấy email từ nhà cung cấp OAuth',
       );
     }
 
-    // Check if user exists
+    // Tìm user theo email hoặc providerId
+    // Ưu tiên tìm theo email trước
     let user = await this.prisma.user.findUnique({
       where: { email },
     });
 
+    // Nếu không tìm thấy theo email, thử tìm theo providerId
+    // (trường hợp user đã đăng ký với email khác nhưng cùng providerId)
+    if (!user) {
+      user = await this.prisma.user.findFirst({
+        where: {
+          providerId: id,
+          loginMethod:
+            provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
+        },
+      });
+    }
+
     if (user) {
       // Update existing user with OAuth info if needed
-      if (!user.providerId || user.loginMethod === LoginMethod.LOCAL) {
+      const updateData: any = {};
+
+      // Cập nhật providerId nếu chưa có hoặc khác
+      if (!user.providerId || user.providerId !== id) {
+        updateData.providerId = id;
+      }
+
+      // Cập nhật loginMethod nếu là LOCAL
+      if (user.loginMethod === LoginMethod.LOCAL) {
+        updateData.loginMethod =
+          provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK;
+      }
+
+      // Cập nhật avatar nếu có
+      if (photos?.[0]?.value && !user.avatarUrl) {
+        updateData.avatarUrl = photos[0].value;
+      }
+
+      // Cập nhật name nếu có và user chưa có name
+      if (displayName && !user.name) {
+        updateData.name = displayName;
+      }
+
+      // Cập nhật email nếu email hiện tại là temporary và có email mới
+      if (email && !email.includes('.temporary') && user.email.includes('.temporary')) {
+        updateData.email = email;
+      }
+
+      if (Object.keys(updateData).length > 0) {
         user = await this.prisma.user.update({
           where: { id: user.id },
-          data: {
-            providerId: id,
-            loginMethod:
-              provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
-            avatarUrl: photos?.[0]?.value,
-            name: displayName || user.name,
-          },
+          data: updateData,
         });
       }
 
@@ -254,7 +291,7 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           email,
-          name: displayName,
+          name: displayName || `${provider} User`,
           avatarUrl: photos?.[0]?.value,
           loginMethod:
             provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
@@ -305,6 +342,10 @@ export class AuthService {
       where: { id: userId },
       data: { refreshToken: null },
     });
+  }
+
+  async generateTokensForUser(userId: string) {
+    return this.generateTokens(userId);
   }
 
   private async generateTokens(userId: string) {

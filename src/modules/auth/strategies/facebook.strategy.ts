@@ -2,15 +2,23 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-facebook';
 import { ConfigService } from '@nestjs/config';
+import { AuthService } from '../auth.service';
 
 @Injectable()
 export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private authService: AuthService,
+  ) {
     super({
-      clientID: configService.get('OAUTH_FB_CLIENT_ID'),
-      clientSecret: configService.get('OAUTH_FB_CLIENT_SECRET'),
-      callbackURL: configService.get('OAUTH_FB_CALLBACK_URL'),
-      profileFields: ['id', 'emails', 'name', 'picture'],
+      clientID: configService.get('OAUTH_FACEBOOK_CLIENT_ID') ||
+        configService.get('OAUTH_FB_CLIENT_ID'),
+      clientSecret: configService.get('OAUTH_FACEBOOK_CLIENT_SECRET') ||
+        configService.get('OAUTH_FB_CLIENT_SECRET'),
+      callbackURL: configService.get('OAUTH_FACEBOOK_CALLBACK_URL') ||
+        configService.get('OAUTH_FB_CALLBACK_URL'),
+      scope: ['email', 'public_profile'],
+      profileFields: ['id', 'emails', 'name', 'displayName', 'picture'],
     });
   }
 
@@ -20,14 +28,57 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     profile: Profile,
     done: Function,
   ) {
-    const { id, name, emails, photos } = profile;
-    const user = {
-      id,
-      email: emails?.[0]?.value,
-      name: `${name?.givenName} ${name?.familyName}`,
-      avatar: photos?.[0]?.value,
-    };
-    done(null, user);
+    try {
+      const { id, name, emails, photos, displayName } = profile;
+      
+      // Xử lý trường hợp không có email - tạo email từ providerId
+      let email = emails?.[0]?.value;
+      if (!email) {
+        // Tạo email giả từ Facebook ID để đảm bảo unique
+        email = `fb_${id}@facebook.temporary`;
+        console.log(
+          `⚠️ Facebook user ${id} không có email, tạo email tạm: ${email}`,
+        );
+      }
+
+      // Chuẩn hóa tên
+      let fullName = displayName;
+      if (!fullName && name) {
+        fullName = `${name.givenName || ''} ${name.familyName || ''}`.trim();
+      }
+      if (!fullName) {
+        fullName = `Facebook User ${id.substring(0, 8)}`;
+      }
+
+      // Chuẩn hóa profile object để truyền vào oauthLogin
+      const normalizedProfile = {
+        id,
+        emails: [{ value: email }],
+        displayName: fullName,
+        photos: photos ? [{ value: photos[0]?.value }] : [],
+      };
+
+      // Gọi oauthLogin để xử lý login/register
+      const result = await this.authService.oauthLogin(
+        normalizedProfile,
+        'facebook',
+      );
+
+      // Lưu tokens vào user object để dùng trong callback
+      const userWithTokens = {
+        ...result.user,
+        _tokens: result.accessToken && result.refreshToken ? {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        } : null,
+      };
+
+      // Passport cần user object
+      done(null, userWithTokens);
+    } catch (error) {
+      console.error('❌ Facebook OAuth validation error:', error);
+      done(error, null);
+    }
   }
 }
 
