@@ -103,7 +103,10 @@ export class StorageService {
       const region = this.getEnvVar('S3_REGION') || this.configService.get('S3_REGION') || 'us-east-1';
       const accessKeyId = this.getEnvVar('MINIO_ROOT_USER', 'S3_ACCESS_KEY_ID');
       const secretAccessKey = this.getEnvVar('MINIO_ROOT_PASSWORD', 'S3_SECRET_ACCESS_KEY');
-
+      const minio_root_user = this.configService.get('MINIO_ROOT_USER');
+      const minio_root_password = this.configService.get('MINIO_ROOT_PASSWORD');
+      const s3_access_key_id = this.configService.get('S3_ACCESS_KEY_ID');
+      const s3_secret_access_key = this.configService.get('S3_SECRET_ACCESS_KEY');
       // Enhanced debug logging
       console.log('🔍 Storage Config Check:', {
         endpoint,
@@ -115,6 +118,10 @@ export class StorageService {
         secretAccessKey: secretAccessKey,
         accessKeyIdLength: accessKeyId?.length || 0,
         secretKeyLength: secretAccessKey?.length || 0,
+        minio_root_user,
+        minio_root_password,
+        s3_access_key_id,
+        s3_secret_access_key,
         // Debug: Check all possible sources
         debug: {
           fromConfigService_MINIO_ROOT_USER: this.configService.get('MINIO_ROOT_USER'),
