@@ -19,7 +19,12 @@ import {
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
+import {
+  RegisterDto,
+  LoginDto,
+  RefreshTokenDto,
+  OAuthDto,
+} from './dto/auth.dto';
 import { NextAuthGuard } from './guards/nextauth.guard';
 import { ConfigService } from '@nestjs/config';
 
@@ -144,5 +149,108 @@ export class AuthController {
   async oauthError(@Query('error') error: string, @Res() res: Response) {
     const frontendUrl = this.configService.get('CORS_ORIGIN') || 'http://localhost:3000';
     return res.redirect(`${frontendUrl}/auth/error?error=${error || 'UnknownError'}`);
+  }
+
+  // POST OAuth endpoints (for direct OAuth login from frontend)
+  @Post('oauth/facebook')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Facebook OAuth login via POST' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: {
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'uuid' },
+                email: { type: 'string', example: 'user@example.com' },
+                name: { type: 'string', example: 'John Doe' },
+                avatarUrl: { type: 'string', example: 'https://...' },
+                role: { type: 'string', example: 'USER' },
+              },
+            },
+            accessToken: { type: 'string', example: 'jwt_token_here' },
+            refreshToken: { type: 'string', example: 'refresh_token_here' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async facebookOAuthPost(@Body() oauthDto: OAuthDto) {
+    try {
+      const result = await this.authService.oauthLoginFromRequest(
+        oauthDto,
+        'facebook',
+      );
+
+      return {
+        success: true,
+        data: {
+          user: result.user,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('oauth/google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Google OAuth login via POST' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: {
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'uuid' },
+                email: { type: 'string', example: 'user@example.com' },
+                name: { type: 'string', example: 'John Doe' },
+                avatarUrl: { type: 'string', example: 'https://...' },
+                role: { type: 'string', example: 'USER' },
+              },
+            },
+            accessToken: { type: 'string', example: 'jwt_token_here' },
+            refreshToken: { type: 'string', example: 'refresh_token_here' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async googleOAuthPost(@Body() oauthDto: OAuthDto) {
+    try {
+      const result = await this.authService.oauthLoginFromRequest(
+        oauthDto,
+        'google',
+      );
+
+      return {
+        success: true,
+        data: {
+          user: result.user,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 }

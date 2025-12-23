@@ -204,6 +204,157 @@ export class AuthService {
     return null;
   }
 
+  async oauthLoginFromRequest(
+    oauthDto: {
+      providerId: string;
+      email: string;
+      name?: string;
+      avatarUrl?: string;
+    },
+    provider: 'google' | 'facebook',
+  ) {
+    const { providerId, email, name, avatarUrl } = oauthDto;
+
+    // Tìm user theo email hoặc providerId + loginMethod
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    // Nếu không tìm thấy theo email, thử tìm theo providerId
+    if (!user) {
+      user = await this.prisma.user.findFirst({
+        where: {
+          providerId,
+          loginMethod:
+            provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
+        },
+      });
+    }
+
+    if (user) {
+      // Update existing user with OAuth info if needed
+      const updateData: any = {};
+
+      // Cập nhật providerId nếu chưa có hoặc khác
+      if (!user.providerId || user.providerId !== providerId) {
+        updateData.providerId = providerId;
+      }
+
+      // Cập nhật loginMethod nếu là LOCAL
+      if (user.loginMethod === LoginMethod.LOCAL) {
+        updateData.loginMethod =
+          provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK;
+      }
+
+      // Cập nhật avatar nếu có và khác với hiện tại
+      if (avatarUrl && user.avatarUrl !== avatarUrl) {
+        updateData.avatarUrl = avatarUrl;
+      }
+
+      // Cập nhật name nếu có và user chưa có name
+      if (name && !user.name) {
+        updateData.name = name;
+      }
+
+      // Cập nhật email nếu email hiện tại là temporary và có email mới
+      if (
+        email &&
+        !email.includes('.temporary') &&
+        user.email.includes('.temporary')
+      ) {
+        updateData.email = email;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: updateData,
+        });
+      }
+
+      // Auto-generate referral code if user doesn't have one
+      if (!user.referralCode) {
+        console.log(
+          `🔄 Auto-generating referral code for existing ${provider} user: ${user.id}`,
+        );
+        const newUserReferralCode =
+          await this.referralService.generateReferralCode();
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { referralCode: newUserReferralCode },
+        });
+        console.log(
+          `✅ Generated referral code for existing ${provider} user: ${newUserReferralCode}`,
+        );
+      }
+
+      // Award daily login bonus (automatically handles duplicate prevention)
+      try {
+        await this.pointsService.awardPoints(
+          user.id,
+          POINTS.DAILY_LOGIN_BONUS,
+          'Daily login bonus',
+        );
+        console.log(
+          `🎁 Daily login bonus awarded to ${user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
+        );
+      } catch (error) {
+        // Silently fail if daily bonus already awarded or limit reached
+        if (error instanceof BadRequestException) {
+          console.log(
+            `ℹ️ Daily login bonus already awarded today for ${user.email}`,
+          );
+        } else {
+          console.error(
+            `❌ Error awarding daily login bonus to ${user.email}:`,
+            error,
+          );
+        }
+      }
+
+      // Reload user to get updated points value
+      const updatedUser = await this.prisma.user.findUnique({
+        where: { id: user.id },
+      });
+      user = updatedUser || user;
+    } else {
+      // Create new user
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          name: name || `${provider} User`,
+          avatarUrl,
+          loginMethod:
+            provider === 'google' ? LoginMethod.GOOGLE : LoginMethod.FACEBOOK,
+          providerId,
+          status: UserStatus.ACTIVE,
+        },
+      });
+
+      // Auto-generate referral code for new OAuth user
+      console.log(
+        `🔄 Auto-generating referral code for new ${provider} user: ${user.id}`,
+      );
+      const newUserReferralCode =
+        await this.referralService.generateReferralCode();
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { referralCode: newUserReferralCode },
+      });
+      console.log(
+        `✅ Generated referral code for new ${provider} user: ${newUserReferralCode}`,
+      );
+    }
+
+    // Generate tokens
+    const tokens = await this.generateTokens(user.id);
+
+    return {
+      ...tokens,
+      user: this.usersService.sanitizeUser(user),
+    };
+  }
+
   async oauthLogin(profile: any, provider: 'google' | 'facebook') {
     const { id, emails, displayName, photos } = profile;
     const email = emails?.[0]?.value;
