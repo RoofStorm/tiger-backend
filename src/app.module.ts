@@ -22,6 +22,17 @@ import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // Load from .env file if exists (for local development)
+      envFilePath: ['.env.local', '.env'],
+      // Don't ignore env file, but also load from process.env (for production)
+      ignoreEnvFile: false,
+      // Disable expandVariables to avoid parsing issues with quoted values
+      expandVariables: false,
+      // Validate that required env vars are present
+      validationOptions: {
+        allowUnknown: true,
+        abortEarly: false,
+      },
     }),
     ThrottlerModule.forRoot([
       {
