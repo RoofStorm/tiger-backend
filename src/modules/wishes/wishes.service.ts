@@ -60,20 +60,41 @@ export class WishesService {
     };
   }
 
-  async getHighlightedWishes() {
-    return this.prisma.wish.findMany({
-      where: { isHighlighted: true },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+  async getHighlightedWishes(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const where = { isHighlighted: true };
+
+    const [wishes, total] = await Promise.all([
+      this.prisma.wish.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
           },
         },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.wish.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      data: wishes,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { createdAt: 'desc' },
-    });
+      message: 'Success',
+    };
   }
 
   async getUserWishes(userId: string, page = 1, limit = 20) {

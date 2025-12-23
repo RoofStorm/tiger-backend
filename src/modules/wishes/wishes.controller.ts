@@ -82,8 +82,13 @@ export class WishesController {
     status: 200,
     description: 'Highlighted wishes retrieved successfully',
   })
-  async getHighlightedWishes() {
-    return this.wishesService.getHighlightedWishes();
+  async getHighlightedWishes(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+  ) {
+    const pageNum = parseInt(page.toString(), 10);
+    const limitNum = parseInt(limit.toString(), 10);
+    return this.wishesService.getHighlightedWishes(pageNum, limitNum);
   }
 
   @Get('user')

@@ -81,21 +81,31 @@ export class AdminController {
     @Request() req,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
-    @Query('highlighted') highlighted?: string,
+    @Query('isHighlighted') isHighlighted?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+    @Query('month') month?: string,
+    @Query('year') year?: string,
   ) {
     const pageNum = parseInt(page.toString(), 10);
     const limitNum = parseInt(limit.toString(), 10);
-    const highlightedBool =
-      highlighted === 'true'
+    const isHighlightedBool =
+      isHighlighted === 'true'
         ? true
-        : highlighted === 'false'
+        : isHighlighted === 'false'
           ? false
           : undefined;
+    const monthNum = month ? parseInt(month.toString(), 10) : undefined;
+    const yearNum = year ? parseInt(year.toString(), 10) : undefined;
     return this.adminService.getPosts(
       req.user.id,
       pageNum,
       limitNum,
-      highlightedBool,
+      isHighlightedBool,
+      sortBy,
+      sortOrder,
+      monthNum,
+      yearNum,
     );
   }
 
