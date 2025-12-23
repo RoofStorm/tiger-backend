@@ -59,6 +59,8 @@ export class StorageService {
         region,
         hasAccessKeyId: !!accessKeyId,
         hasSecretKey: !!secretAccessKey,
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
         accessKeyIdLength: accessKeyId?.length || 0,
         secretKeyLength: secretAccessKey?.length || 0,
       });
