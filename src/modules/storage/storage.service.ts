@@ -59,6 +59,7 @@ export class StorageService {
       region: string;
       accessKeyId: string;
       hasSecretKey: boolean;
+      secretAccessKey?: string;
     };
   }> {
     try {
@@ -97,6 +98,7 @@ export class StorageService {
             region,
             accessKeyId: accessKeyId || 'not set',
             hasSecretKey: !!secretAccessKey,
+            secretAccessKey: secretAccessKey || 'not set',
           },
         };
       }
@@ -147,6 +149,7 @@ export class StorageService {
           bucket: bucket || 'not set',
           region,
           accessKeyId: accessKeyId || 'not set',
+          secretAccessKey: secretAccessKey || 'not set',
           hasSecretKey: !!secretAccessKey,
         },
       };
