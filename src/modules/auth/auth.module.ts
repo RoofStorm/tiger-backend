@@ -12,6 +12,7 @@ import { UsersModule } from '../users/users.module';
 import { PointsModule } from '../points/points.module';
 import { ReferralModule } from '../referral/referral.module';
 import { NextAuthMiddleware } from './nextauth.middleware';
+import { OptionalNextAuthGuard } from './guards/optional-nextauth.guard';
 
 @Module({
   imports: [
@@ -36,8 +37,9 @@ import { NextAuthMiddleware } from './nextauth.middleware';
     GoogleStrategy,
     FacebookStrategy,
     NextAuthMiddleware,
+    OptionalNextAuthGuard,
   ],
   controllers: [AuthController],
-  exports: [AuthService, NextAuthMiddleware],
+  exports: [AuthService, NextAuthMiddleware, OptionalNextAuthGuard],
 })
 export class AuthModule {}

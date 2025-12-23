@@ -51,11 +51,41 @@ export class PostsService {
         this.prisma.post.count({ where }),
       ]);
 
-      // Return posts with global counts (no user-specific data)
-      const postsWithCounts = posts.map((post) => ({
-        ...post,
-        imageUrl: post.url, // Map url to imageUrl for frontend compatibility
-      }));
+      // Get user stats (isLiked, isShared) if userId is provided
+      let userStatsMap: Record<string, { isLiked: boolean; isShared: boolean }> = {};
+      if (userId) {
+        const postIds = posts.map((post) => post.id);
+        const userStats = await this.getBulkUserStats(postIds, userId);
+        userStatsMap = userStats.reduce(
+          (acc, stat) => {
+            acc[stat.postId] = {
+              isLiked: stat.isLiked,
+              isShared: stat.isShared,
+            };
+            return acc;
+          },
+          {} as Record<string, { isLiked: boolean; isShared: boolean }>,
+        );
+      }
+
+      // Return posts with global counts and user-specific data (if authenticated)
+      const postsWithCounts = posts.map((post) => {
+        const basePost = {
+          ...post,
+          imageUrl: post.url, // Map url to imageUrl for frontend compatibility
+        };
+
+        // Add user-specific data if userId is provided
+        if (userId && userStatsMap[post.id]) {
+          return {
+            ...basePost,
+            isLiked: userStatsMap[post.id].isLiked,
+            isShared: userStatsMap[post.id].isShared,
+          };
+        }
+
+        return basePost;
+      });
 
       return {
         posts: postsWithCounts,

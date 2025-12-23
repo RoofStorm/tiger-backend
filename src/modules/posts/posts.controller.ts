@@ -10,6 +10,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { NextAuthGuard } from '../auth/guards/nextauth.guard';
+import { OptionalNextAuthGuard } from '../auth/guards/optional-nextauth.guard';
 import {
   ApiTags,
   ApiOperation,
@@ -62,19 +63,20 @@ export class PostsController {
   }
 
   @Get('highlighted')
-  @ApiOperation({ summary: 'Get highlighted posts (public)' })
+  @UseGuards(OptionalNextAuthGuard)
+  @ApiOperation({ summary: 'Get highlighted posts (public, optional auth)' })
   @ApiResponse({
     status: 200,
     description: 'Highlighted posts retrieved successfully',
   })
-  async getHighlightedPosts() {
+  async getHighlightedPosts(@Request() req?: any) {
     return this.postsService.findAll(
       {
         highlighted: true,
         page: 1,
         limit: 20,
       },
-      undefined, // No user ID for public access
+      req?.user?.id, // Optional: include user ID if authenticated
     );
   }
 
