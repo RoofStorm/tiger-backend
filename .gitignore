@@ -194,7 +194,9 @@ ehthumbs.db
 Thumbs.db
 
 # Prisma
-prisma/migrations/
+# NOTE: prisma/migrations/ should NOT be ignored - migrations need to be committed to git
+# Only ignore generated files if needed
+# prisma/migrations/
 
 # Uploads
 uploads/
