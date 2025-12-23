@@ -219,7 +219,16 @@ export class AdminService {
     };
   }
 
-  async getPosts(adminId: string, page = 1, limit = 20, highlighted?: boolean) {
+  async getPosts(
+    adminId: string,
+    page = 1,
+    limit = 20,
+    isHighlighted?: boolean,
+    sortBy?: string,
+    sortOrder: string = 'desc',
+    month?: number,
+    year?: number,
+  ) {
     // Check if user is admin
     const admin = await this.prisma.user.findUnique({
       where: { id: adminId },
@@ -235,14 +244,76 @@ export class AdminService {
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = {};
-    if (highlighted !== undefined) where.highlighted = highlighted;
+    if (isHighlighted !== undefined) where.isHighlighted = isHighlighted;
+
+    // Filter by month and year (based on createdAt)
+    if (month !== undefined || year !== undefined) {
+      const filterYear = year ?? new Date().getFullYear();
+      const startDate = new Date();
+      const endDate = new Date();
+
+      if (month !== undefined) {
+        // Validate month (1-12)
+        if (month < 1 || month > 12) {
+          throw new Error('Month must be between 1 and 12');
+        }
+        // First day of the month
+        startDate.setFullYear(filterYear, month - 1, 1);
+        // Last day of the month
+        endDate.setFullYear(filterYear, month, 0);
+      } else {
+        // Filter by entire year
+        startDate.setFullYear(filterYear, 0, 1); // January 1st
+        endDate.setFullYear(filterYear, 11, 31); // December 31st
+      }
+
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+
+      where.createdAt = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
+
+    // Build orderBy based on sortBy parameter
+    let orderBy: any = { createdAt: 'desc' }; // Default sort
+
+    if (sortBy) {
+      const validSortFields = [
+        'likeCount',
+        'isHighlighted',
+        'createdAt',
+        'userName',
+      ];
+      const validSortOrders = ['asc', 'desc'];
+
+      if (validSortFields.includes(sortBy)) {
+        const order = validSortOrders.includes(sortOrder.toLowerCase())
+          ? sortOrder.toLowerCase()
+          : 'desc';
+
+        if (sortBy === 'userName') {
+          // Sort by user name requires ordering by relation
+          orderBy = {
+            user: {
+              name: order,
+            },
+          };
+        } else {
+          orderBy = {
+            [sortBy]: order,
+          };
+        }
+      }
+    }
 
     const [posts, total] = await Promise.all([
       this.prisma.post.findMany({
         where,
         skip,
         take: limitNum,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: {
           user: {
             select: {
