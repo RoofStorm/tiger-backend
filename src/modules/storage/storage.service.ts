@@ -9,15 +9,48 @@ export class StorageService {
   private cloudinaryConfigured = false;
 
   constructor(private configService: ConfigService) {
+    // Helper method to get env var with fallback to process.env
+    const getEnvVar = (key: string, fallbackKey?: string): string | undefined => {
+      // Try ConfigService first
+      let value = this.configService.get<string>(key);
+      if (!value && fallbackKey) {
+        value = this.configService.get<string>(fallbackKey);
+      }
+      // Fallback to process.env directly if ConfigService doesn't have it
+      if (!value) {
+        value = process.env[key];
+      }
+      if (!value && fallbackKey) {
+        value = process.env[fallbackKey];
+      }
+      return value;
+    };
+
     // Initialize S3 with MinIO-compatible configuration
-    const endpoint = this.configService.get('S3_ENDPOINT');
-    const region = this.configService.get('S3_REGION') || 'us-east-1';
+    const endpoint = getEnvVar('S3_ENDPOINT') || this.configService.get('S3_ENDPOINT');
+    const region = getEnvVar('S3_REGION') || this.configService.get('S3_REGION') || 'us-east-1';
+    const accessKeyId = getEnvVar('MINIO_ROOT_USER', 'S3_ACCESS_KEY_ID');
+    const secretAccessKey = getEnvVar('MINIO_ROOT_PASSWORD', 'S3_SECRET_ACCESS_KEY');
+
+    // Debug logging in constructor (only in non-production)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔧 StorageService Constructor - Env Vars:', {
+        endpoint,
+        region,
+        hasAccessKeyId: !!accessKeyId,
+        hasSecretKey: !!secretAccessKey,
+        accessKeyIdFromConfig: this.configService.get('MINIO_ROOT_USER'),
+        secretKeyFromConfig: this.configService.get('MINIO_ROOT_PASSWORD'),
+        accessKeyIdFromProcess: process.env.MINIO_ROOT_USER,
+        secretKeyFromProcess: process.env.MINIO_ROOT_PASSWORD,
+      });
+    }
     
     this.s3 = new AWS.S3({
       endpoint: endpoint,
       region: region,
-      accessKeyId: this.configService.get('MINIO_ROOT_USER') || this.configService.get('S3_ACCESS_KEY_ID'),
-      secretAccessKey: this.configService.get('MINIO_ROOT_PASSWORD') || this.configService.get('S3_SECRET_ACCESS_KEY'),
+      accessKeyId: accessKeyId,
+      secretAccessKey: secretAccessKey,
       s3ForcePathStyle: true, // Required for MinIO
       // signatureVersion: 'v4', // MinIO requires v4 signature
       signatureCache: false, // Disable signature cache to avoid stale signatures
@@ -34,6 +67,25 @@ export class StorageService {
   /**
    * Test S3/MinIO connection and credentials
    */
+  /**
+   * Helper method to get env var with multiple fallbacks
+   */
+  private getEnvVar(key: string, fallbackKey?: string): string | undefined {
+    // Try ConfigService first
+    let value = this.configService.get<string>(key);
+    if (!value && fallbackKey) {
+      value = this.configService.get<string>(fallbackKey);
+    }
+    // Fallback to process.env directly if ConfigService doesn't have it
+    if (!value) {
+      value = process.env[key];
+    }
+    if (!value && fallbackKey) {
+      value = process.env[fallbackKey];
+    }
+    return value;
+  }
+
   async testConnection(): Promise<{
     success: boolean;
     message: string;
@@ -46,13 +98,13 @@ export class StorageService {
     };
   }> {
     try {
-      const endpoint = this.configService.get('S3_ENDPOINT');
-      const bucket = this.configService.get('S3_BUCKET');
-      const region = this.configService.get('S3_REGION') || 'us-east-1';
-      const accessKeyId = this.configService.get('MINIO_ROOT_USER');
-      const secretAccessKey = this.configService.get('MINIO_ROOT_PASSWORD');
+      const endpoint = this.getEnvVar('S3_ENDPOINT') || this.configService.get('S3_ENDPOINT');
+      const bucket = this.getEnvVar('S3_BUCKET') || this.configService.get('S3_BUCKET');
+      const region = this.getEnvVar('S3_REGION') || this.configService.get('S3_REGION') || 'us-east-1';
+      const accessKeyId = this.getEnvVar('MINIO_ROOT_USER', 'S3_ACCESS_KEY_ID');
+      const secretAccessKey = this.getEnvVar('MINIO_ROOT_PASSWORD', 'S3_SECRET_ACCESS_KEY');
 
-      // Debug logging
+      // Enhanced debug logging
       console.log('🔍 Storage Config Check:', {
         endpoint,
         bucket,
@@ -63,6 +115,15 @@ export class StorageService {
         secretAccessKey: secretAccessKey,
         accessKeyIdLength: accessKeyId?.length || 0,
         secretKeyLength: secretAccessKey?.length || 0,
+        // Debug: Check all possible sources
+        debug: {
+          fromConfigService_MINIO_ROOT_USER: this.configService.get('MINIO_ROOT_USER'),
+          fromConfigService_MINIO_ROOT_PASSWORD: this.configService.get('MINIO_ROOT_PASSWORD'),
+          fromProcessEnv_MINIO_ROOT_USER: process.env.MINIO_ROOT_USER,
+          fromProcessEnv_MINIO_ROOT_PASSWORD: process.env.MINIO_ROOT_PASSWORD ,
+          fromConfigService_S3_ENDPOINT: this.configService.get('S3_ENDPOINT'),
+          fromProcessEnv_S3_ENDPOINT: process.env.S3_ENDPOINT,
+        },
       });
 
       // Check if credentials are configured
@@ -112,11 +173,11 @@ export class StorageService {
         },
       };
     } catch (error: any) {
-      const endpoint = this.configService.get('S3_ENDPOINT');
-      const bucket = this.configService.get('S3_BUCKET');
-      const region = this.configService.get('S3_REGION') || 'us-east-1';
-      const accessKeyId = this.configService.get('MINIO_ROOT_USER');
-      const secretAccessKey = this.configService.get('MINIO_ROOT_PASSWORD');
+      const endpoint = this.getEnvVar('S3_ENDPOINT') || this.configService.get('S3_ENDPOINT');
+      const bucket = this.getEnvVar('S3_BUCKET') || this.configService.get('S3_BUCKET');
+      const region = this.getEnvVar('S3_REGION') || this.configService.get('S3_REGION') || 'us-east-1';
+      const accessKeyId = this.getEnvVar('MINIO_ROOT_USER', 'S3_ACCESS_KEY_ID');
+      const secretAccessKey = this.getEnvVar('MINIO_ROOT_PASSWORD', 'S3_SECRET_ACCESS_KEY');
 
       return {
         success: false,
@@ -152,8 +213,8 @@ export class StorageService {
       return result.Location;
     } catch (error: any) {
       // Enhanced error logging for debugging
-      const endpoint = this.configService.get('S3_ENDPOINT');
-      const accessKeyId = this.configService.get('MINIO_ROOT_USER');
+      const endpoint = this.getEnvVar('S3_ENDPOINT') || this.configService.get('S3_ENDPOINT');
+      const accessKeyId = this.getEnvVar('MINIO_ROOT_USER', 'S3_ACCESS_KEY_ID');
       
       console.error('S3 Upload Error:', {
         code: error.code,
@@ -162,7 +223,7 @@ export class StorageService {
         endpoint,
         bucket,
         accessKeyId: accessKeyId ? `${accessKeyId.substring(0, 4)}...` : 'not set',
-        hasSecretKey: !!this.configService.get('MINIO_ROOT_PASSWORD'),
+        hasSecretKey: !!this.getEnvVar('MINIO_ROOT_PASSWORD', 'S3_SECRET_ACCESS_KEY'),
       });
 
       // Provide more helpful error messages
