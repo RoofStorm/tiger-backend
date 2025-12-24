@@ -32,7 +32,7 @@ export class StorageService {
       region: region,
       accessKeyId: accessKeyId,
       secretAccessKey: secretAccessKey,
-      sslEnabled: false,
+      sslEnabled: true,
       s3ForcePathStyle: true, // Required for MinIO
       signatureVersion: 'v4', // MinIO requires v4 signature
       signatureCache: false, // Disable signature cache to avoid stale signatures
