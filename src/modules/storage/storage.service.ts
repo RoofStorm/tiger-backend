@@ -159,7 +159,7 @@ export class StorageService {
   async uploadToS3(
     file: Express.Multer.File,
     folder = 'uploads',
-  ): Promise<string> {
+  ): Promise<{ url: string; publicUrl: string }> {
     const bucket = this.configService.get('S3_BUCKET');
     const key = `${folder}/${Date.now()}-${file.originalname}`;
 
@@ -172,7 +172,10 @@ export class StorageService {
 
     try {
       const result = await this.s3.upload(params).promise();
-      return result.Location;
+      return {
+        url: result.Location,
+        publicUrl: `${this.configService.get('S3_PUBLIC_ENDPOINT')}/${key}`,
+      };
     } catch (error: any) {
       // Enhanced error logging for debugging
       const endpoint = this.configService.get('S3_ENDPOINT');

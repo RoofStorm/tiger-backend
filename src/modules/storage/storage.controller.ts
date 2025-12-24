@@ -101,14 +101,14 @@ export class StorageController {
     );
 
     try {
-      const url = await this.storageService.uploadToS3(file);
+      const { publicUrl } = await this.storageService.uploadToS3(file);
       const duration = Date.now() - startTime;
 
       this.logger.log(
-        `✅ Upload successful - File: ${file.originalname}, Size: ${fileSizeMB}MB, Duration: ${duration}ms, URL: ${url}`,
+        `✅ Upload successful - File: ${file.originalname}, Size: ${fileSizeMB}MB, Duration: ${duration}ms, URL: ${publicUrl}`,
       );
 
-      return { url };
+      return { url: publicUrl };  
     } catch (error: any) {
       const duration = Date.now() - startTime;
       this.logger.error(
