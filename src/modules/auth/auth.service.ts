@@ -11,7 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { PointsService } from '../points/points.service';
 import { ReferralService } from '../referral/referral.service';
-import { LoginDto, RegisterDto, RefreshTokenDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, RefreshTokenDto, ChangePasswordDto } from './dto/auth.dto';
 import { LoginMethod, UserStatus } from '@prisma/client';
 import { POINTS } from '../../constants/points';
 
@@ -485,6 +485,61 @@ export class AuthService {
     }
 
     return this.usersService.sanitizeUser(user);
+  }
+
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
+    const { oldPassword, newPassword } = changePasswordDto;
+
+    // Find user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Không tìm thấy người dùng');
+    }
+
+    // Check if user is using LOCAL login method
+    if (user.loginMethod !== LoginMethod.LOCAL) {
+      throw new BadRequestException(
+        'Chỉ tài khoản đăng ký bằng email/mật khẩu mới có thể đổi mật khẩu',
+      );
+    }
+
+    // Check if user has password hash
+    if (!user.passwordHash) {
+      throw new BadRequestException('Tài khoản này chưa có mật khẩu');
+    }
+
+    // Verify old password
+    const isOldPasswordValid = await bcrypt.compare(
+      oldPassword,
+      user.passwordHash,
+    );
+    if (!isOldPasswordValid) {
+      throw new UnauthorizedException('Mật khẩu cũ không đúng');
+    }
+
+    // Check if new password is different from old password
+    const isSamePassword = await bcrypt.compare(newPassword, user.passwordHash);
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'Mật khẩu mới phải khác với mật khẩu cũ',
+      );
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    return {
+      message: 'Đổi mật khẩu thành công',
+    };
   }
 
   async logout(userId: string) {

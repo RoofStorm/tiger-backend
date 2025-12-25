@@ -72,3 +72,15 @@ export class OAuthDto {
   @IsUrl()
   avatarUrl?: string;
 }
+
+export class ChangePasswordDto {
+  @ApiProperty({ example: 'oldPassword123' })
+  @IsString()
+  @IsNotEmpty()
+  oldPassword: string;
+
+  @ApiProperty({ example: 'newPassword123', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
+}
