@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GrantPointsDto } from './dto/grant-points.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PointsService {
@@ -12,30 +13,38 @@ export class PointsService {
     reason: string,
     referralUrl?: string,
   ) {
-    // Check daily limits based on reason
-    await this.checkDailyLimits(userId, reason);
+    // Use transaction to prevent race conditions
+    // This ensures that checkDailyLimits and pointLog creation are atomic
+    // If two requests try to award the same daily bonus simultaneously,
+    // only one will succeed, the other will fail with BadRequestException
+    return await this.prisma.$transaction(
+      async (tx) => {
+        // Check daily limits based on reason (within transaction)
+        await this.checkDailyLimitsInTransaction(tx, userId, reason);
 
-    // Create point log
-    const pointLog = await this.prisma.pointLog.create({
-      data: {
-        userId,
-        points,
-        reason,
-        referralUrl,
+        // Create point log
+        const pointLog = await tx.pointLog.create({
+          data: {
+            userId,
+            points,
+            reason,
+            referralUrl,
+          },
+        });
+
+        // Update user points
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            points: {
+              increment: points,
+            },
+          },
+        });
+
+        return pointLog;
       },
-    });
-
-    // Update user points
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        points: {
-          increment: points,
-        },
-      },
-    });
-
-    return pointLog;
+    );
   }
 
   async grantPoints(grantPointsDto: GrantPointsDto, adminId: string) {
@@ -105,12 +114,24 @@ export class PointsService {
   }
 
   private async checkDailyLimits(userId: string, reason: string) {
+    return this.checkDailyLimitsInTransaction(
+      this.prisma,
+      userId,
+      reason,
+    );
+  }
+
+  private async checkDailyLimitsInTransaction(
+    tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
+    userId: string,
+    reason: string,
+  ) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const todayLogs = await this.prisma.pointLog.findMany({
+    const todayLogs = await tx.pointLog.findMany({
       where: {
         userId,
         reason,
@@ -140,15 +161,27 @@ export class PointsService {
 
     // Check weekly limits
     if (reason.includes('Challenge') || reason === 'Invite friend') {
-      await this.checkWeeklyLimits(userId, reason);
+      await this.checkWeeklyLimitsInTransaction(tx, userId, reason);
     }
   }
 
   private async checkWeeklyLimits(userId: string, reason: string) {
+    return this.checkWeeklyLimitsInTransaction(
+      this.prisma,
+      userId,
+      reason,
+    );
+  }
+
+  private async checkWeeklyLimitsInTransaction(
+    tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
+    userId: string,
+    reason: string,
+  ) {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const weekLogs = await this.prisma.pointLog.findMany({
+    const weekLogs = await tx.pointLog.findMany({
       where: {
         userId,
         reason,
