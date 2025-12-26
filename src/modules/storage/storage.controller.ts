@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Head,
   Options,
   Param,
   Res,
@@ -244,7 +245,7 @@ export class StorageController {
   }
 
   @Get('video/:filename')
-  @ApiOperation({ summary: 'Get video from MinIO with Range support (public)' })
+  @ApiOperation({ summary: 'Get video from MinIO with Range support (iOS Safari compatible)' })
   @ApiResponse({
     status: 200,
     description: 'Video streamed successfully',
@@ -265,64 +266,91 @@ export class StorageController {
     try {
       // Decode filename (handle URL encoding)
       const decodedFilename = decodeURIComponent(filename);
-      this.logger.log(`📹 Video request: ${decodedFilename}`);
+      this.logger.log(`📹 Video request: ${decodedFilename}, Range: ${req.headers.range || 'none'}`);
 
       // Get video metadata first
       const metadata = await this.storageService.getVideoMetadata(decodedFilename);
       const totalSize = metadata.contentLength;
+      const contentType = metadata.contentType;
 
       // Parse Range header if present
       const rangeHeader = req.headers.range;
       let start = 0;
       let end = totalSize - 1;
-      let statusCode = 200;
+      let isRangeRequest = false;
 
       if (rangeHeader) {
-        const parts = rangeHeader.replace(/bytes=/, '').split('-');
-        start = parseInt(parts[0], 10);
-        end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+        // Parse Range header: "bytes=start-end" or "bytes=start-"
+        const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+        if (match) {
+          start = parseInt(match[1], 10);
+          // If end is not specified, it means "to end of file"
+          end = match[2] ? parseInt(match[2], 10) : totalSize - 1;
 
-        // Validate range
-        if (start >= totalSize || end >= totalSize) {
+          // Validate range
+          if (isNaN(start) || isNaN(end) || start < 0 || end < start) {
+            res.status(416).setHeader('Content-Range', `bytes */${totalSize}`);
+            res.setHeader('Content-Length', '0');
+            res.setHeader('Accept-Ranges', 'bytes');
+            return res.end();
+          }
+
+          // Ensure end doesn't exceed file size
+          if (end >= totalSize) {
+            end = totalSize - 1;
+          }
+
+          isRangeRequest = true;
+        } else {
+          // Invalid Range header format
           res.status(416).setHeader('Content-Range', `bytes */${totalSize}`);
+          res.setHeader('Content-Length', '0');
+          res.setHeader('Accept-Ranges', 'bytes');
           return res.end();
         }
-
-        statusCode = 206; // Partial Content
       }
 
+      // Calculate chunk size (CRITICAL for iOS Safari)
+      // For 206: chunkSize = end - start + 1
+      // For 200: chunkSize = totalSize
+      const chunkSize = isRangeRequest ? end - start + 1 : totalSize;
+
       // Get video stream with range support
-      const { stream, contentLength, contentType } =
-        await this.storageService.getVideoStream(decodedFilename, start, end);
+      const { stream } = await this.storageService.getVideoStream(
+        decodedFilename,
+        isRangeRequest ? start : undefined,
+        isRangeRequest ? end : undefined,
+      );
 
-      // Set headers
+      // ✅ iOS Safari REQUIRES these headers in EXACT order and format
+      // 1. Content-Type MUST be set first
       res.setHeader('Content-Type', contentType);
+      
+      // 2. Accept-Ranges MUST be present
       res.setHeader('Accept-Ranges', 'bytes');
-      res.setHeader('Content-Length', contentLength);
+      
+      // 3. Content-Length MUST be chunk size (not full file size) for 206
+      res.setHeader('Content-Length', chunkSize.toString());
+      
+      // 4. Content-Range MUST be set for 206 responses (iOS Safari requirement)
+      if (isRangeRequest) {
+        // Format: bytes start-end/total (CRITICAL: no spaces around dash in range)
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
+      }
+      
+      // 5. Cache headers
       res.setHeader('Cache-Control', 'public, max-age=31536000');
-
-      // CORS headers
+      
+      // 6. CORS headers (minimal, avoid conflicts)
       const frontendUrl = process.env.FRONTEND_URL || '*';
       res.setHeader('Access-Control-Allow-Origin', frontendUrl);
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.setHeader(
-        'Access-Control-Allow-Headers',
-        'Range, Content-Type, Accept-Ranges',
-      );
-      res.setHeader(
-        'Access-Control-Expose-Headers',
-        'Content-Length, Content-Range, Accept-Ranges, Content-Type',
-      );
-
-      // Cross-Origin headers for video playback
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-
-      // Set Content-Range header for partial content
-      if (statusCode === 206) {
-        res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
-        res.status(206);
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Type');
+      
+      // 7. Set status code LAST (after all headers)
+      if (isRangeRequest) {
+        res.status(206); // Partial Content
       } else {
-        res.status(200);
+        res.status(200); // OK
       }
 
       // Pipe stream to response
@@ -330,6 +358,8 @@ export class StorageController {
         this.logger.error(`❌ Stream error for ${decodedFilename}:`, error);
         if (!res.headersSent) {
           res.status(500).json({ message: 'Stream error' });
+        } else {
+          res.destroy();
         }
       });
 
@@ -341,6 +371,35 @@ export class StorageController {
           message: error.message || 'Video not found',
           filename: filename,
         });
+      }
+    }
+  }
+
+  @Head('video/:filename')
+  @ApiOperation({ summary: 'Get video metadata (HEAD request for iOS Safari)' })
+  async getVideoHead(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+  ) {
+    try {
+      const decodedFilename = decodeURIComponent(filename);
+      const metadata = await this.storageService.getVideoMetadata(decodedFilename);
+
+      // Set headers for HEAD request
+      res.setHeader('Content-Type', metadata.contentType);
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', metadata.contentLength.toString());
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      
+      const frontendUrl = process.env.FRONTEND_URL || '*';
+      res.setHeader('Access-Control-Allow-Origin', frontendUrl);
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Type');
+
+      res.status(200).end();
+    } catch (error: any) {
+      this.logger.error(`❌ Error in HEAD request for ${filename}:`, error);
+      if (!res.headersSent) {
+        res.status(404).end();
       }
     }
   }
