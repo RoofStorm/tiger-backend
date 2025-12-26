@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "posts" ADD COLUMN     "isHighlighted" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "posts" ADD COLUMN IF NOT EXISTS "isHighlighted" BOOLEAN NOT NULL DEFAULT false;

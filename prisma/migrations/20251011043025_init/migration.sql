@@ -1,23 +1,36 @@
--- CreateEnum
-CREATE TYPE "LoginMethod" AS ENUM ('LOCAL', 'GOOGLE', 'FACEBOOK');
+-- CreateEnum with error handling
+DO $$ BEGIN
+    CREATE TYPE "LoginMethod" AS ENUM ('LOCAL', 'GOOGLE', 'FACEBOOK');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
+DO $$ BEGIN
+    CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'BANNED');
+DO $$ BEGIN
+    CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'BANNED');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "PostType" AS ENUM ('EMOJI_CARD', 'IMAGE', 'CONFESSION', 'CLIP');
+DO $$ BEGIN
+    CREATE TYPE "PostType" AS ENUM ('EMOJI_CARD', 'IMAGE', 'CONFESSION', 'CLIP');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "ActionType" AS ENUM ('LIKE', 'SHARE');
+DO $$ BEGIN
+    CREATE TYPE "ActionType" AS ENUM ('LIKE', 'SHARE');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "RedeemStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'DELIVERED');
+DO $$ BEGIN
+    CREATE TYPE "RedeemStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'DELIVERED');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
     "id" TEXT NOT NULL,
     "name" TEXT,
     "email" TEXT NOT NULL,
@@ -36,7 +49,7 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
-CREATE TABLE "posts" (
+CREATE TABLE IF NOT EXISTS "posts" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "type" "PostType" NOT NULL,
@@ -52,7 +65,7 @@ CREATE TABLE "posts" (
 );
 
 -- CreateTable
-CREATE TABLE "user_post_actions" (
+CREATE TABLE IF NOT EXISTS "user_post_actions" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "postId" TEXT NOT NULL,
@@ -63,7 +76,7 @@ CREATE TABLE "user_post_actions" (
 );
 
 -- CreateTable
-CREATE TABLE "point_logs" (
+CREATE TABLE IF NOT EXISTS "point_logs" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "points" INTEGER NOT NULL,
@@ -76,7 +89,7 @@ CREATE TABLE "point_logs" (
 );
 
 -- CreateTable
-CREATE TABLE "redeem_logs" (
+CREATE TABLE IF NOT EXISTS "redeem_logs" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "giftCode" TEXT NOT NULL,
@@ -91,7 +104,7 @@ CREATE TABLE "redeem_logs" (
 );
 
 -- CreateTable
-CREATE TABLE "corner_analytics" (
+CREATE TABLE IF NOT EXISTS "corner_analytics" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "corner" INTEGER NOT NULL,
@@ -102,25 +115,46 @@ CREATE TABLE "corner_analytics" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "users_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_post_actions_userId_postId_type_key" ON "user_post_actions"("userId", "postId", "type");
+CREATE UNIQUE INDEX IF NOT EXISTS "user_post_actions_userId_postId_type_key" ON "user_post_actions"("userId", "postId", "type");
 
 -- AddForeignKey
-ALTER TABLE "posts" ADD CONSTRAINT "posts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_post_actions" ADD CONSTRAINT "user_post_actions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_post_actions" ADD CONSTRAINT "user_post_actions_postId_fkey" FOREIGN KEY ("postId") REFERENCES "posts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "point_logs" ADD CONSTRAINT "point_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "redeem_logs" ADD CONSTRAINT "redeem_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "corner_analytics" ADD CONSTRAINT "corner_analytics_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'posts') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'posts_userId_fkey') THEN
+            ALTER TABLE "posts" ADD CONSTRAINT "posts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_post_actions') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_post_actions_userId_fkey') THEN
+            ALTER TABLE "user_post_actions" ADD CONSTRAINT "user_post_actions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_post_actions_postId_fkey') THEN
+            ALTER TABLE "user_post_actions" ADD CONSTRAINT "user_post_actions_postId_fkey" FOREIGN KEY ("postId") REFERENCES "posts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'point_logs') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'point_logs_userId_fkey') THEN
+            ALTER TABLE "point_logs" ADD CONSTRAINT "point_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'redeem_logs') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'redeem_logs_userId_fkey') THEN
+            ALTER TABLE "redeem_logs" ADD CONSTRAINT "redeem_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'corner_analytics') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'corner_analytics_userId_fkey') THEN
+            ALTER TABLE "corner_analytics" ADD CONSTRAINT "corner_analytics_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END $$;

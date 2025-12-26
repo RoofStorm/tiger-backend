@@ -508,7 +508,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"corner\": \"corner1\",\n  \"action\": \"view\",\n  \"metadata\": {\n    \"duration\": 30\n  }\n}"
+              "raw": "{\n  \"events\": [\n    {\n      \"corner\": \"corner1\",\n      \"durationSec\": 120\n    },\n    {\n      \"corner\": \"home\",\n      \"durationSec\": 60\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/analytics/corners",

@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "share_limits" (
+CREATE TABLE IF NOT EXISTS "share_limits" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
@@ -11,7 +11,14 @@ CREATE TABLE "share_limits" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "share_limits_userId_date_key" ON "share_limits"("userId", "date");
+CREATE UNIQUE INDEX IF NOT EXISTS "share_limits_userId_date_key" ON "share_limits"("userId", "date");
 
 -- AddForeignKey
-ALTER TABLE "share_limits" ADD CONSTRAINT "share_limits_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'share_limits') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'share_limits_userId_fkey') THEN
+            ALTER TABLE "share_limits" ADD CONSTRAINT "share_limits_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+    END IF;
+END $$;
