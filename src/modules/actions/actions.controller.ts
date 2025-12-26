@@ -72,10 +72,10 @@ export class ActionsController {
       ...result,
       pointsAwarded,
       pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook đầu tiên trong tuần (dù share post hay wish, chỉ được cộng 1 lần/tuần).`
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
         : body?.platform === 'facebook'
-          ? 'Bài viết đã được chia sẻ thành công. Bạn đã nhận điểm cho việc chia sẻ lên Facebook đầu tiên trong tuần này (dù share post hay wish, chỉ được cộng 1 lần/tuần).'
-          : 'Bài viết đã được chia sẻ thành công. Chỉ chia sẻ lên Facebook mới được cộng điểm (50 điểm/tuần, dù share post hay wish).',
+          ? 'Bài viết đã được chia sẻ thành công. Bạn đã nhận điểm cho việc chia sẻ lên Facebook.'
+          : 'Bài viết đã được chia sẻ thành công. Hãy chia sẻ lên Facebook để nhận điểm.',
     };
   }
 

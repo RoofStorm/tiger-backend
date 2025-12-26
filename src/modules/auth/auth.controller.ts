@@ -24,6 +24,7 @@ import {
   LoginDto,
   RefreshTokenDto,
   OAuthDto,
+  ChangePasswordDto,
 } from './dto/auth.dto';
 import { NextAuthGuard } from './guards/nextauth.guard';
 import { ConfigService } from '@nestjs/config';
@@ -68,6 +69,33 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getCurrentUser(@Req() req: Request) {
     return this.authService.getCurrentUser((req as any).user.id);
+  }
+
+  @Post('change-password')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password for LOCAL login accounts' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password changed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Đổi mật khẩu thành công' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async changePassword(
+    @Req() req: Request,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(
+      (req as any).user.id,
+      changePasswordDto,
+    );
   }
 
   // Facebook OAuth

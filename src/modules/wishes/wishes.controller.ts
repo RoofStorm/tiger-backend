@@ -56,8 +56,8 @@ export class WishesController {
       ...wish,
       pointsAwarded,
       pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${WISH_LIMITS.WEEKLY_WISH_POINTS} điểm cho lời chúc đầu tiên trong tuần.`
-        : 'Lời chúc đã được tạo thành công. Bạn đã nhận điểm cho lời chúc đầu tiên trong tuần này.',
+        ? `Chúc mừng! Bạn đã nhận được ${WISH_LIMITS.WEEKLY_WISH_POINTS} điểm cho lời chúc.`
+        : 'Lời chúc đã được tạo thành công.',
     };
   }
 
@@ -182,10 +182,10 @@ export class WishesController {
       success: true,
       pointsAwarded,
       pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook đầu tiên trong tuần (dù share post hay wish, chỉ được cộng 1 lần/tuần).`
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
         : body?.platform === 'facebook'
-          ? 'Lời chúc đã được chia sẻ thành công. Bạn đã nhận điểm cho việc chia sẻ lên Facebook đầu tiên trong tuần này (dù share post hay wish, chỉ được cộng 1 lần/tuần).'
-          : 'Lời chúc đã được chia sẻ thành công. Chỉ chia sẻ lên Facebook mới được cộng điểm (50 điểm/tuần, dù share post hay wish).',
+          ? 'Lời chúc đã được chia sẻ thành công.'
+          : 'Lời chúc đã được chia sẻ thành công. Hãy chia sẻ lên Facebook để nhận điểm.',
     };
   }
 }

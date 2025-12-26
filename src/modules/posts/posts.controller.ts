@@ -117,8 +117,8 @@ export class PostsController {
       ...post,
       pointsAwarded,
       pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${POST_LIMITS.WEEKLY_POST_POINTS} điểm cho bài viết đầu tiên trong tuần.`
-        : 'Bài viết đã được tạo thành công. Bạn đã nhận điểm cho bài viết đầu tiên trong tuần này.',
+        ? `Chúc mừng! Bạn đã nhận được ${POST_LIMITS.WEEKLY_POST_POINTS} điểm cho bài viết.`
+        : 'Bài viết đã được tạo thành công.',
     };
   }
 
