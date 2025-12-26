@@ -26,14 +26,14 @@ jobs:
         push: true
         tags: tuandoquoc/tiger-backend:latest
 
-    - name: Redeploy to the server
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        key: ${{ secrets.SSH_KEY }}
-        script: |
-          cd /opt/tiger-backend
-          docker pull tuandoquoc/tiger-backend:latest
-          docker compose --env-file .env up -d backend
-          docker image prune -f
+    # - name: Redeploy to the server
+    #   uses: appleboy/ssh-action@v1.0.0
+    #   with:
+    #     host: ${{ secrets.SSH_HOST }}
+    #     username: ${{ secrets.SSH_USERNAME }}
+    #     key: ${{ secrets.SSH_KEY }}
+    #     script: |
+    #       cd /opt/tiger-backend
+    #       docker pull tuandoquoc/tiger-backend:latest
+    #       docker compose --env-file .env up -d backend
+    #       docker image prune -f
