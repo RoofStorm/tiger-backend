@@ -204,3 +204,4 @@ uploads/
 # Docker
 .dockerignore
 
+.k8s/
