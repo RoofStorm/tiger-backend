@@ -113,7 +113,7 @@ model RedeemLog {
 model CornerAnalytics {
   id        String   @id @default(uuid())
   userId    String
-  corner    Int
+  corner    String
   duration  Int
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])

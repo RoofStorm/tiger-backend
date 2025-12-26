@@ -48,7 +48,7 @@ export class AnalyticsController {
     description: 'Analytics summary retrieved successfully',
   })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getCornerSummary(@Param('corner') corner: number, @Request() req) {
+  async getCornerSummary(@Param('corner') corner: string, @Request() req) {
     return this.analyticsService.getCornerSummary(corner, req.user.id);
   }
 

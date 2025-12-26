@@ -16,9 +16,9 @@ export class AnalyticsService {
   ) {
     const { corner, durationSec } = createCornerAnalyticsDto;
 
-    // Validate corner (0-6)
-    if (corner < 0 || corner > 6) {
-      throw new BadRequestException('Corner must be between 0 and 6');
+    // Validate corner is not empty
+    if (!corner || corner.trim().length === 0) {
+      throw new BadRequestException('Corner must not be empty');
     }
 
     // Validate duration
@@ -37,7 +37,7 @@ export class AnalyticsService {
     const analytics = await this.prisma.cornerAnalytics.create({
       data: {
         userId,
-        corner,
+        corner: corner.trim(),
         duration: durationSec,
       },
     });
@@ -51,8 +51,8 @@ export class AnalyticsService {
   ) {
     // Validate all events
     for (const event of events) {
-      if (event.corner < 0 || event.corner > 6) {
-        throw new BadRequestException('Corner must be between 0 and 6');
+      if (!event.corner || event.corner.trim().length === 0) {
+        throw new BadRequestException('Corner must not be empty');
       }
       if (event.durationSec <= 0) {
         throw new BadRequestException('Duration must be positive');
@@ -71,7 +71,7 @@ export class AnalyticsService {
     const analytics = await this.prisma.cornerAnalytics.createMany({
       data: events.map((event) => ({
         userId,
-        corner: event.corner,
+        corner: event.corner.trim(),
         duration: event.durationSec,
       })),
     });
@@ -79,7 +79,7 @@ export class AnalyticsService {
     return { message: 'Analytics recorded', count: analytics.count };
   }
 
-  async getCornerSummary(corner: number, adminId: string) {
+  async getCornerSummary(corner: string, adminId: string) {
     // Verify admin
     const admin = await this.prisma.user.findUnique({
       where: { id: adminId },
@@ -89,14 +89,14 @@ export class AnalyticsService {
       throw new ForbiddenException('Only admins can view analytics');
     }
 
-    // Validate corner
-    if (corner < 0 || corner > 5) {
-      throw new BadRequestException('Corner must be between 0 and 5');
+    // Validate corner is not empty
+    if (!corner || corner.trim().length === 0) {
+      throw new BadRequestException('Corner must not be empty');
     }
 
     // Get analytics data for the corner
     const analytics = await this.prisma.cornerAnalytics.findMany({
-      where: { corner },
+      where: { corner: corner.trim() },
       select: {
         duration: true,
         createdAt: true,
@@ -105,7 +105,7 @@ export class AnalyticsService {
 
     if (analytics.length === 0) {
       return {
-        corner,
+        corner: corner.trim(),
         totalRecords: 0,
         averageDuration: 0,
         medianDuration: 0,
@@ -130,7 +130,7 @@ export class AnalyticsService {
         : durations[Math.floor(durations.length / 2)];
 
     return {
-      corner,
+      corner: corner.trim(),
       totalRecords: analytics.length,
       averageDuration: Math.round(averageDuration * 100) / 100,
       medianDuration: Math.round(medianDuration * 100) / 100,
@@ -174,10 +174,18 @@ export class AnalyticsService {
       throw new ForbiddenException('Only admins can view analytics');
     }
 
-    // Get stats for all corners
+    // Get all unique corners from database
+    const uniqueCorners = await this.prisma.cornerAnalytics.findMany({
+      select: {
+        corner: true,
+      },
+      distinct: ['corner'],
+    });
+
+    // Get stats for all unique corners
     const stats = await Promise.all(
-      Array.from({ length: 5 }, (_, corner) =>
-        this.getCornerSummary(corner, adminId),
+      uniqueCorners.map((item) =>
+        this.getCornerSummary(item.corner, adminId),
       ),
     );
 

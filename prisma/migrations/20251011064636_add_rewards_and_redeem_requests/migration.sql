@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "rewards" (
+CREATE TABLE IF NOT EXISTS "rewards" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE "rewards" (
 );
 
 -- CreateTable
-CREATE TABLE "redeem_requests" (
+CREATE TABLE IF NOT EXISTS "redeem_requests" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "rewardId" TEXT NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE "redeem_requests" (
 );
 
 -- CreateTable
-CREATE TABLE "points_logs" (
+CREATE TABLE IF NOT EXISTS "points_logs" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "points" INTEGER NOT NULL,
@@ -41,10 +41,20 @@ CREATE TABLE "points_logs" (
 );
 
 -- AddForeignKey
-ALTER TABLE "redeem_requests" ADD CONSTRAINT "redeem_requests_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "redeem_requests" ADD CONSTRAINT "redeem_requests_rewardId_fkey" FOREIGN KEY ("rewardId") REFERENCES "rewards"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "points_logs" ADD CONSTRAINT "points_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'redeem_requests') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'redeem_requests_userId_fkey') THEN
+            ALTER TABLE "redeem_requests" ADD CONSTRAINT "redeem_requests_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'redeem_requests_rewardId_fkey') THEN
+            ALTER TABLE "redeem_requests" ADD CONSTRAINT "redeem_requests_rewardId_fkey" FOREIGN KEY ("rewardId") REFERENCES "rewards"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'points_logs') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'points_logs_userId_fkey') THEN
+            ALTER TABLE "points_logs" ADD CONSTRAINT "points_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+    END IF;
+END $$;
