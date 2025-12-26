@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tiger-app-config
+  namespace: tiger
+data:
+  # CORS
+  CORS_ORIGIN: https://tiger-corporation-vietnam.vn
+
+  # JWT
+  JWT_EXPIRES_IN: 15m
+  JWT_REFRESH_EXPIRES_IN: 7d
+
+  # Frontend
+  FRONTEND_URL: https://tiger-corporation-vietnam.vn
+
+  # Server
+  PORT: "4000"
+  NODE_ENV: production
+
+  # S3 / MinIO
+  S3_ENDPOINT: https://7901b39e83ffc3c0ce1d07f393dd8da4.r2.cloudflarestorage.com
+  S3_PUBLIC_ENDPOINT: https://s3.tiger-corporation-vietnam.vn
+  S3_BUCKET: tiger-uploads
+  S3_REGION: us-east-1
+
+  # OAuth callback
+  OAUTH_GOOGLE_CALLBACK_URL: https://api.tiger-corporation-vietnam.vn/api/auth/oauth/google/callback
+  OAUTH_FB_CALLBACK_URL: https://tiger-corporation-vietnam.vn/api/auth/facebook/callback
+
+  # Rate limit
+  THROTTLE_TTL: "60"
+  THROTTLE_LIMIT: "100"
