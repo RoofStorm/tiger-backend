@@ -309,7 +309,11 @@ export class StorageService {
     return `${endpoint}/${bucket}/tiger-videos/${filename}`;
   }
 
-  async getVideoStream(filename: string): Promise<any> {
+  async getVideoMetadata(filename: string): Promise<{
+    contentLength: number;
+    contentType: string;
+    etag?: string;
+  }> {
     const bucket = this.configService.get('S3_BUCKET');
 
     const params = {
@@ -318,13 +322,75 @@ export class StorageService {
     };
 
     try {
-      // Check if object exists first
-      await this.s3.headObject(params).promise();
+      const headObject = await this.s3.headObject(params).promise();
+      
+      // Determine content type from filename or metadata
+      let contentType = headObject.ContentType || 'video/mp4';
+      if (!contentType.startsWith('video/')) {
+        const ext = filename.toLowerCase().split('.').pop();
+        const mimeTypes: Record<string, string> = {
+          mp4: 'video/mp4',
+          webm: 'video/webm',
+          ogg: 'video/ogg',
+          mov: 'video/quicktime',
+          avi: 'video/x-msvideo',
+        };
+        contentType = mimeTypes[ext || ''] || 'video/mp4';
+      }
 
-      // Return stream
-      return this.s3.getObject(params).createReadStream();
-    } catch (error) {
-      throw new Error(`Video not found: ${filename}`);
+      return {
+        contentLength: headObject.ContentLength || 0,
+        contentType,
+        etag: headObject.ETag,
+      };
+    } catch (error: any) {
+      if (error.code === 'NotFound' || error.statusCode === 404) {
+        throw new Error(`Video not found: ${filename}`);
+      }
+      throw new Error(`Failed to get video metadata: ${error.message}`);
+    }
+  }
+
+  async getVideoStream(
+    filename: string,
+    start?: number,
+    end?: number,
+  ): Promise<{ stream: any; contentLength: number; contentType: string }> {
+    const bucket = this.configService.get('S3_BUCKET');
+
+    const params: AWS.S3.GetObjectRequest = {
+      Bucket: bucket,
+      Key: `tiger-videos/${filename}`,
+    };
+
+    // Add Range parameter if specified
+    if (start !== undefined && end !== undefined) {
+      params.Range = `bytes=${start}-${end}`;
+    }
+
+    try {
+      // Get metadata first
+      const metadata = await this.getVideoMetadata(filename);
+
+      // Get object stream
+      const stream = this.s3.getObject(params).createReadStream();
+
+      // Calculate actual content length for range requests
+      let contentLength = metadata.contentLength;
+      if (start !== undefined && end !== undefined) {
+        contentLength = end - start + 1;
+      }
+
+      return {
+        stream,
+        contentLength,
+        contentType: metadata.contentType,
+      };
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        throw error;
+      }
+      throw new Error(`Failed to get video stream: ${error.message}`);
     }
   }
 

@@ -5,6 +5,7 @@ import {
   Options,
   Param,
   Res,
+  Req,
   UploadedFile,
   UseInterceptors,
   UseGuards,
@@ -243,28 +244,66 @@ export class StorageController {
   }
 
   @Get('video/:filename')
-  @ApiOperation({ summary: 'Get video from MinIO (public)' })
+  @ApiOperation({ summary: 'Get video from MinIO with Range support (public)' })
   @ApiResponse({
     status: 200,
     description: 'Video streamed successfully',
   })
   @ApiResponse({
+    status: 206,
+    description: 'Partial content (Range request)',
+  })
+  @ApiResponse({
     status: 404,
     description: 'Video not found',
   })
-  async getVideo(@Param('filename') filename: string, @Res() res: Response) {
+  async getVideo(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+    @Req() req: any,
+  ) {
     try {
-      const stream = await this.storageService.getVideoStream(filename);
+      // Decode filename (handle URL encoding)
+      const decodedFilename = decodeURIComponent(filename);
+      this.logger.log(`📹 Video request: ${decodedFilename}`);
 
-      res.setHeader('Content-Type', 'video/mp4');
+      // Get video metadata first
+      const metadata = await this.storageService.getVideoMetadata(decodedFilename);
+      const totalSize = metadata.contentLength;
+
+      // Parse Range header if present
+      const rangeHeader = req.headers.range;
+      let start = 0;
+      let end = totalSize - 1;
+      let statusCode = 200;
+
+      if (rangeHeader) {
+        const parts = rangeHeader.replace(/bytes=/, '').split('-');
+        start = parseInt(parts[0], 10);
+        end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+
+        // Validate range
+        if (start >= totalSize || end >= totalSize) {
+          res.status(416).setHeader('Content-Range', `bytes */${totalSize}`);
+          return res.end();
+        }
+
+        statusCode = 206; // Partial Content
+      }
+
+      // Get video stream with range support
+      const { stream, contentLength, contentType } =
+        await this.storageService.getVideoStream(decodedFilename, start, end);
+
+      // Set headers
+      res.setHeader('Content-Type', contentType);
       res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', contentLength);
       res.setHeader('Cache-Control', 'public, max-age=31536000');
 
-      // ✅ CORS + CORP headers
-      res.setHeader(
-        'Access-Control-Allow-Origin',
-        process.env.FRONTEND_URL || 'http://localhost:3000',
-      );
+      // CORS headers
+      const frontendUrl = process.env.FRONTEND_URL || '*';
+      res.setHeader('Access-Control-Allow-Origin', frontendUrl);
       res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       res.setHeader(
         'Access-Control-Allow-Headers',
@@ -275,14 +314,34 @@ export class StorageController {
         'Content-Length, Content-Range, Accept-Ranges, Content-Type',
       );
 
-      // ✅ Quan trọng: Chrome yêu cầu để video cross-origin hiển thị được
+      // Cross-Origin headers for video playback
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+
+      // Set Content-Range header for partial content
+      if (statusCode === 206) {
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
+        res.status(206);
+      } else {
+        res.status(200);
+      }
+
+      // Pipe stream to response
+      stream.on('error', (error: Error) => {
+        this.logger.error(`❌ Stream error for ${decodedFilename}:`, error);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Stream error' });
+        }
+      });
 
       stream.pipe(res);
-    } catch (error) {
-      console.error('Error streaming video:', error);
-      res.status(404).json({ message: 'Video not found' });
+    } catch (error: any) {
+      this.logger.error(`❌ Error streaming video ${filename}:`, error);
+      if (!res.headersSent) {
+        res.status(404).json({ 
+          message: error.message || 'Video not found',
+          filename: filename,
+        });
+      }
     }
   }
 
@@ -302,22 +361,78 @@ export class StorageController {
     description: 'Video streamed successfully',
   })
   @ApiResponse({
+    status: 206,
+    description: 'Partial content (Range request)',
+  })
+  @ApiResponse({
     status: 404,
     description: 'Video not found',
   })
-  async streamVideo(@Param('filename') filename: string, @Res() res: Response) {
+  async streamVideo(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+    @Req() req: any,
+  ) {
     try {
-      const stream = await this.storageService.getVideoStream(filename);
+      const decodedFilename = decodeURIComponent(filename);
+      
+      // Get video metadata
+      const metadata = await this.storageService.getVideoMetadata(decodedFilename);
+      const totalSize = metadata.contentLength;
 
-      // Set proper headers for video streaming
-      res.setHeader('Content-Type', 'video/x-matroska');
+      // Parse Range header if present
+      const rangeHeader = req.headers.range;
+      let start = 0;
+      let end = totalSize - 1;
+      let statusCode = 200;
+
+      if (rangeHeader) {
+        const parts = rangeHeader.replace(/bytes=/, '').split('-');
+        start = parseInt(parts[0], 10);
+        end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+
+        if (start >= totalSize || end >= totalSize) {
+          res.status(416).setHeader('Content-Range', `bytes */${totalSize}`);
+          return res.end();
+        }
+
+        statusCode = 206;
+      }
+
+      // Get video stream
+      const { stream, contentLength, contentType } =
+        await this.storageService.getVideoStream(decodedFilename, start, end);
+
+      // Set headers
+      res.setHeader('Content-Type', contentType);
       res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', contentLength);
       res.setHeader('Cache-Control', 'public, max-age=31536000');
       res.setHeader('Access-Control-Allow-Origin', '*');
 
+      if (statusCode === 206) {
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
+        res.status(206);
+      } else {
+        res.status(200);
+      }
+
+      stream.on('error', (error: Error) => {
+        this.logger.error(`❌ Stream error for ${decodedFilename}:`, error);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Stream error' });
+        }
+      });
+
       stream.pipe(res);
-    } catch (error) {
-      res.status(404).json({ message: 'Video not found' });
+    } catch (error: any) {
+      this.logger.error(`❌ Error streaming video ${filename}:`, error);
+      if (!res.headersSent) {
+        res.status(404).json({ 
+          message: error.message || 'Video not found',
+          filename: filename,
+        });
+      }
     }
   }
 
