@@ -63,7 +63,7 @@ spec:
           image: tuandoquoc/export-ssm-to-env:1.0.0
           imagePullPolicy: IfNotPresent
           args:
-            - "--path=/tiger-backend/"
+            - "--path=/tiger/prod/backend/"
             - "--region=ap-southeast-1"
             - "--env-file=/var/secret/.env"
           volumeMounts:
