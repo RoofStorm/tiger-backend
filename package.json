@@ -22,13 +22,14 @@
     "migration:deploy": "prisma migrate deploy",
     "migration:reset": "prisma migrate reset",
     "db:seed": "ts-node prisma/seed.ts",
+    "db:update-rewards": "ts-node scripts/update-rewards.ts",
     "db:studio": "prisma studio",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:build": "docker-compose build"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "node dist/prisma/seed.js || ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

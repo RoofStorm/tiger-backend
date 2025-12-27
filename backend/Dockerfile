@@ -24,6 +24,16 @@ RUN npx prisma generate
 # Build the application
 RUN npm run build
 
+# Build seed file for production (compile TypeScript to JavaScript)
+RUN npx tsc prisma/seed.ts \
+  --outDir dist/prisma \
+  --module commonjs \
+  --target es2020 \
+  --esModuleInterop \
+  --resolveJsonModule \
+  --skipLibCheck \
+  --moduleResolution node
+
 # Stage 2: Production stage
 FROM node:18-alpine
 
@@ -44,6 +54,9 @@ COPY --from=builder /app/prisma ./prisma
 
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
+
+# Copy built seed file from builder
+COPY --from=builder /app/dist/prisma/seed.js ./dist/prisma/seed.js
 
 # Copy Prisma generated client from builder
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma

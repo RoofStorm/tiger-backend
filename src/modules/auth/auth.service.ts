@@ -27,24 +27,64 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, name, referralCode } = registerDto;
+    const { username, password, email, name, referralCode } = registerDto;
 
-    // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
+    // Validate: must have either username or email
+    if (!username && !email) {
+      throw new BadRequestException('Phải cung cấp username hoặc email');
+    }
 
-    if (existingUser) {
-      throw new ConflictException('Email này đã được sử dụng');
+    // Generate username from email if username not provided
+    let finalUsername = username;
+    if (!finalUsername && email) {
+      // Extract username from email (part before @)
+      finalUsername = email.split('@')[0];
+      // Clean username: remove special characters, keep only alphanumeric and underscore
+      finalUsername = finalUsername.replace(/[^a-zA-Z0-9_]/g, '');
+      // Ensure minimum length
+      if (finalUsername.length < 3) {
+        finalUsername = finalUsername + '123'; // Add suffix if too short
+      }
+      // Check if generated username already exists, add random suffix if needed
+      let checkUsername = finalUsername;
+      let counter = 1;
+      while (await this.usersService.findByUsername(checkUsername)) {
+        checkUsername = `${finalUsername}${counter}`;
+        counter++;
+      }
+      finalUsername = checkUsername;
+    }
+
+    // Check if username already exists
+    const existingUserByUsername = await this.usersService.findByUsername(finalUsername);
+
+    if (existingUserByUsername) {
+      throw new ConflictException('Username này đã được sử dụng');
+    }
+
+    // Check if email already exists (if provided)
+    if (email) {
+      const existingUserByEmail = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (existingUserByEmail) {
+        throw new ConflictException('Email này đã được sử dụng');
+      }
     }
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Create user
+    // For local accounts, email is optional but username is required
+    // If email not provided, create a temporary email from username
+    const userEmail = email || `${finalUsername}@local.temporary`;
+
     let user = await this.prisma.user.create({
       data: {
-        email,
+        username: finalUsername,
+        email: userEmail,
         passwordHash,
         name,
         loginMethod: LoginMethod.LOCAL,
@@ -88,21 +128,29 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const { username, password } = loginDto;
 
-    // Find user
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
+    // Try to find user by username first
+    let user = await this.usersService.findByUsername(username);
+
+    // If not found by username, try to find by email
+    if (!user) {
+      user = await this.usersService.findByEmail(username);
+    }
 
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      throw new UnauthorizedException('Username/Email hoặc mật khẩu không đúng');
+    }
+
+    // Check if user is using LOCAL login method
+    if (user.loginMethod !== LoginMethod.LOCAL) {
+      throw new UnauthorizedException('Tài khoản này không sử dụng đăng nhập bằng username/password');
     }
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      throw new UnauthorizedException('Username/Email hoặc mật khẩu không đúng');
     }
 
     // Check user status
@@ -115,25 +163,30 @@ export class AuthService {
 
     // Award daily login bonus (automatically handles duplicate prevention)
     // Updated to 10 points per day
+    // pointsAwarded will only be true if points were actually awarded
+    // If user already received bonus today, awardPoints will throw BadRequestException
+    // and pointsAwarded will remain false
+    let pointsAwarded = false;
     try {
       await this.pointsService.awardPoints(
         user.id,
         POINTS.DAILY_LOGIN_BONUS,
         'Daily login bonus',
       );
+      pointsAwarded = true; // Only set to true if award was successful
       console.log(
-        `🎁 Daily login bonus awarded to ${user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
+        `🎁 Daily login bonus awarded to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
       );
     } catch (error) {
       // Silently fail if daily bonus already awarded or limit reached
       // This prevents login failure due to bonus issues
       if (error instanceof BadRequestException) {
         console.log(
-          `ℹ️ Daily login bonus already awarded today for ${user.email}`,
+          `ℹ️ Daily login bonus already awarded today for ${user.username || user.email}`,
         );
       } else {
         console.error(
-          `❌ Error awarding daily login bonus to ${user.email}:`,
+          `❌ Error awarding daily login bonus to ${user.username || user.email}:`,
           error,
         );
       }
@@ -147,6 +200,10 @@ export class AuthService {
     return {
       ...tokens,
       user: this.usersService.sanitizeUser(updatedUser || user),
+      pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`
+        : 'Đăng nhập thành công.',
     };
   }
 
@@ -177,12 +234,16 @@ export class AuthService {
     }
   }
 
-  async validateUser(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
+  async validateUser(username: string, password: string) {
+    // Try to find user by username first
+    let user = await this.usersService.findByUsername(username);
 
-    if (user && user.passwordHash) {
+    // If not found by username, try to find by email
+    if (!user) {
+      user = await this.usersService.findByEmail(username);
+    }
+
+    if (user && user.passwordHash && user.loginMethod === LoginMethod.LOCAL) {
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (isPasswordValid && user.status === UserStatus.ACTIVE) {
         return this.usersService.sanitizeUser(user);
@@ -214,6 +275,7 @@ export class AuthService {
     provider: 'google' | 'facebook',
   ) {
     const { providerId, email, name, avatarUrl } = oauthDto;
+    let pointsAwarded = false;
 
     // Tìm user theo email hoặc providerId + loginMethod
     let user = await this.prisma.user.findUnique({
@@ -289,12 +351,16 @@ export class AuthService {
       }
 
       // Award daily login bonus (automatically handles duplicate prevention)
+      // pointsAwarded will only be true if points were actually awarded
+      // If user already received bonus today, awardPoints will throw BadRequestException
+      // and pointsAwarded will remain false
       try {
         await this.pointsService.awardPoints(
           user.id,
           POINTS.DAILY_LOGIN_BONUS,
           'Daily login bonus',
         );
+        pointsAwarded = true; // Only set to true if award was successful
         console.log(
           `🎁 Daily login bonus awarded to ${user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
         );
@@ -352,6 +418,10 @@ export class AuthService {
     return {
       ...tokens,
       user: this.usersService.sanitizeUser(user),
+      pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`
+        : 'Đăng nhập thành công.',
     };
   }
 

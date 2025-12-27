@@ -3,20 +3,44 @@ import {
   IsEmail,
   IsString,
   MinLength,
+  MaxLength,
+  Matches,
   IsOptional,
   IsNotEmpty,
   IsUrl,
+  ValidateIf,
 } from 'class-validator';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'user@example.com' })
-  @IsEmail()
-  email: string;
+  @ApiProperty({ 
+    example: 'johndoe', 
+    description: 'Username (unique). If not provided, will be generated from email.',
+    required: false 
+  })
+  @ValidateIf((o) => !o.email || o.username)
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(3)
+  @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message: 'Username chỉ được chứa chữ cái, số và dấu gạch dưới',
+  })
+  username?: string;
 
   @ApiProperty({ example: 'password123', minLength: 6 })
   @IsString()
   @MinLength(6)
   password: string;
+
+  @ApiProperty({ 
+    example: 'user@example.com', 
+    required: false, 
+    description: 'Email (optional, but required if username not provided)' 
+  })
+  @ValidateIf((o) => !o.username || o.email)
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @ApiProperty({ example: 'John Doe', required: false })
   @IsOptional()
@@ -30,9 +54,14 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'user@example.com' })
-  @IsEmail()
-  email: string;
+  @ApiProperty({ 
+    example: 'johndoe', 
+    description: 'Username or email for local login' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(3)
+  username: string;
 
   @ApiProperty({ example: 'password123' })
   @IsString()

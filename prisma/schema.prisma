@@ -11,6 +11,7 @@ model User {
   id             String            @id @default(uuid())
   name           String?
   email          String            @unique
+  username       String?           @unique
   passwordHash   String?
   avatarUrl      String?
   loginMethod    LoginMethod       @default(LOCAL)
@@ -153,9 +154,10 @@ model RedeemRequest {
   id              String       @id @default(uuid())
   userId          String
   rewardId        String
-  receiverName    String
+  receiverName    String?
   receiverPhone   String
-  receiverAddress String
+  receiverEmail   String
+  receiverAddress String?
   status          RedeemStatus @default(PENDING)
   pointsUsed      Int
   rejectionReason String?

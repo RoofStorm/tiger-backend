@@ -17,8 +17,7 @@ export class RedeemService {
   ) {}
 
   async createRedeem(createRedeemDto: CreateRedeemDto, userId: string) {
-    const { rewardId, receiverName, receiverPhone, receiverAddress } =
-      createRedeemDto;
+    const { rewardId, receiverPhone, receiverEmail } = createRedeemDto;
 
     // Get user current points
     const user = await this.prisma.user.findUnique({
@@ -30,12 +29,23 @@ export class RedeemService {
     }
 
     // Find the reward
+    console.log('🔍 Looking for reward with ID:', rewardId);
     const reward = await this.prisma.reward.findUnique({
       where: { id: rewardId },
     });
 
+    console.log('🔍 Reward found:', reward ? { id: reward.id, name: reward.name, isActive: reward.isActive } : 'null');
+
     if (!reward) {
-      throw new NotFoundException('Reward not found');
+      // List available rewards for debugging
+      const availableRewards = await this.prisma.reward.findMany({
+        select: { id: true, name: true, isActive: true },
+        take: 10,
+      });
+      console.log('📋 Available rewards:', availableRewards);
+      throw new NotFoundException(
+        `Reward not found with ID: ${rewardId}. Available rewards: ${availableRewards.map((r) => r.id).join(', ')}`,
+      );
     }
 
     if (!reward.isActive) {
@@ -72,9 +82,8 @@ export class RedeemService {
       data: {
         userId,
         rewardId,
-        receiverName,
         receiverPhone,
-        receiverAddress,
+        receiverEmail,
         pointsUsed: costPoints,
         status: RedeemStatus.PENDING,
       },
