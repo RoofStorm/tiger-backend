@@ -54,14 +54,13 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'johndoe', description: 'Username for local login' })
+  @ApiProperty({ 
+    example: 'johndoe', 
+    description: 'Username or email for local login' 
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
-  @MaxLength(30)
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: 'Username chỉ được chứa chữ cái, số và dấu gạch dưới',
-  })
   username: string;
 
   @ApiProperty({ example: 'password123' })

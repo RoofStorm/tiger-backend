@@ -130,11 +130,16 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { username, password } = loginDto;
 
-    // Find user by username
-    const user = await this.usersService.findByUsername(username);
+    // Try to find user by username first
+    let user = await this.usersService.findByUsername(username);
+
+    // If not found by username, try to find by email
+    if (!user) {
+      user = await this.usersService.findByEmail(username);
+    }
 
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Username hoặc mật khẩu không đúng');
+      throw new UnauthorizedException('Username/Email hoặc mật khẩu không đúng');
     }
 
     // Check if user is using LOCAL login method
@@ -145,7 +150,7 @@ export class AuthService {
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Username hoặc mật khẩu không đúng');
+      throw new UnauthorizedException('Username/Email hoặc mật khẩu không đúng');
     }
 
     // Check user status
@@ -230,7 +235,13 @@ export class AuthService {
   }
 
   async validateUser(username: string, password: string) {
-    const user = await this.usersService.findByUsername(username);
+    // Try to find user by username first
+    let user = await this.usersService.findByUsername(username);
+
+    // If not found by username, try to find by email
+    if (!user) {
+      user = await this.usersService.findByEmail(username);
+    }
 
     if (user && user.passwordHash && user.loginMethod === LoginMethod.LOCAL) {
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
