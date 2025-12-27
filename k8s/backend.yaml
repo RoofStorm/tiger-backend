@@ -95,7 +95,7 @@ spec:
             - "/bin/sh"
             - "-c"
             - |
-              export $(grep -v '^#' /var/secret/.env | xargs) && exec npm run start:prod
+              export $(grep -v '^#' /var/secret/.env | xargs) && npx prisma migrate deploy && exec npm run start:prod
           volumeMounts:
             - name: shared-secret
               mountPath: /var/secret
