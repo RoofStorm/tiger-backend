@@ -18,6 +18,12 @@ export class UsersService {
     });
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { username },
+    });
+  }
+
   async updatePoints(userId: string, points: number): Promise<User> {
     return this.prisma.user.update({
       where: { id: userId },
@@ -58,5 +64,10 @@ export class UsersService {
   sanitizeUser(user: User) {
     const { passwordHash, refreshToken, ...sanitized } = user;
     return sanitized;
+  }
+
+  async checkUsernameAvailability(username: string): Promise<boolean> {
+    const user = await this.findByUsername(username);
+    return !user; // Returns true if username is available (user not found)
   }
 }

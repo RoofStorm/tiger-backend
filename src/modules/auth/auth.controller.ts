@@ -16,6 +16,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
@@ -28,14 +29,76 @@ import {
 } from './dto/auth.dto';
 import { NextAuthGuard } from './guards/nextauth.guard';
 import { ConfigService } from '@nestjs/config';
+import { UsersService } from '../users/users.service';
 
 @ApiTags('Authentication')
 @Controller('api/auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly usersService: UsersService,
     private readonly configService: ConfigService,
   ) {}
+
+  @Get('check-username')
+  @ApiOperation({ summary: 'Check if username is available (public endpoint)' })
+  @ApiQuery({
+    name: 'username',
+    required: true,
+    description: 'Username to check',
+    example: 'johndoe',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Username availability checked',
+    schema: {
+      type: 'object',
+      properties: {
+        available: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Username có thể sử dụng' },
+      },
+    },
+  })
+  async checkUsernameAvailability(@Query('username') username: string) {
+    if (!username || username.trim().length === 0) {
+      return {
+        available: false,
+        message: 'Username không được để trống',
+      };
+    }
+
+    if (username.length < 3) {
+      return {
+        available: false,
+        message: 'Username phải có ít nhất 3 ký tự',
+      };
+    }
+
+    if (username.length > 30) {
+      return {
+        available: false,
+        message: 'Username không được quá 30 ký tự',
+      };
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return {
+        available: false,
+        message: 'Username chỉ được chứa chữ cái, số và dấu gạch dưới',
+      };
+    }
+
+    const isAvailable = await this.usersService.checkUsernameAvailability(
+      username,
+    );
+
+    return {
+      available: isAvailable,
+      message: isAvailable
+        ? 'Username có thể sử dụng'
+        : 'Username đã được sử dụng',
+    };
+  }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })

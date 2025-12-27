@@ -48,7 +48,7 @@ export class AuthService {
       // Check if generated username already exists, add random suffix if needed
       let checkUsername = finalUsername;
       let counter = 1;
-      while (await this.prisma.user.findUnique({ where: { username: checkUsername } })) {
+      while (await this.usersService.findByUsername(checkUsername)) {
         checkUsername = `${finalUsername}${counter}`;
         counter++;
       }
@@ -56,9 +56,7 @@ export class AuthService {
     }
 
     // Check if username already exists
-    const existingUserByUsername = await this.prisma.user.findUnique({
-      where: { username: finalUsername },
-    });
+    const existingUserByUsername = await this.usersService.findByUsername(finalUsername);
 
     if (existingUserByUsername) {
       throw new ConflictException('Username này đã được sử dụng');
@@ -133,9 +131,7 @@ export class AuthService {
     const { username, password } = loginDto;
 
     // Find user by username
-    const user = await this.prisma.user.findUnique({
-      where: { username },
-    });
+    const user = await this.usersService.findByUsername(username);
 
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Username hoặc mật khẩu không đúng');
@@ -162,12 +158,17 @@ export class AuthService {
 
     // Award daily login bonus (automatically handles duplicate prevention)
     // Updated to 10 points per day
+    // pointsAwarded will only be true if points were actually awarded
+    // If user already received bonus today, awardPoints will throw BadRequestException
+    // and pointsAwarded will remain false
+    let pointsAwarded = false;
     try {
       await this.pointsService.awardPoints(
         user.id,
         POINTS.DAILY_LOGIN_BONUS,
         'Daily login bonus',
       );
+      pointsAwarded = true; // Only set to true if award was successful
       console.log(
         `🎁 Daily login bonus awarded to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
       );
@@ -194,6 +195,10 @@ export class AuthService {
     return {
       ...tokens,
       user: this.usersService.sanitizeUser(updatedUser || user),
+      pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`
+        : 'Đăng nhập thành công.',
     };
   }
 
@@ -225,9 +230,7 @@ export class AuthService {
   }
 
   async validateUser(username: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { username },
-    });
+    const user = await this.usersService.findByUsername(username);
 
     if (user && user.passwordHash && user.loginMethod === LoginMethod.LOCAL) {
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -261,6 +264,7 @@ export class AuthService {
     provider: 'google' | 'facebook',
   ) {
     const { providerId, email, name, avatarUrl } = oauthDto;
+    let pointsAwarded = false;
 
     // Tìm user theo email hoặc providerId + loginMethod
     let user = await this.prisma.user.findUnique({
@@ -336,12 +340,16 @@ export class AuthService {
       }
 
       // Award daily login bonus (automatically handles duplicate prevention)
+      // pointsAwarded will only be true if points were actually awarded
+      // If user already received bonus today, awardPoints will throw BadRequestException
+      // and pointsAwarded will remain false
       try {
         await this.pointsService.awardPoints(
           user.id,
           POINTS.DAILY_LOGIN_BONUS,
           'Daily login bonus',
         );
+        pointsAwarded = true; // Only set to true if award was successful
         console.log(
           `🎁 Daily login bonus awarded to ${user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
         );
@@ -399,6 +407,10 @@ export class AuthService {
     return {
       ...tokens,
       user: this.usersService.sanitizeUser(user),
+      pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`
+        : 'Đăng nhập thành công.',
     };
   }
 
