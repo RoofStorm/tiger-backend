@@ -154,9 +154,10 @@ model RedeemRequest {
   id              String       @id @default(uuid())
   userId          String
   rewardId        String
-  receiverName    String
+  receiverName    String?
   receiverPhone   String
-  receiverAddress String
+  receiverEmail   String
+  receiverAddress String?
   status          RedeemStatus @default(PENDING)
   pointsUsed      Int
   rejectionReason String?

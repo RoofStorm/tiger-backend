@@ -76,106 +76,110 @@ async function main() {
     }),
   ]);
 
-  // Create rewards
+  // Create rewards - Only 4 vouchers: 50k, 100k, 500k, 1000k
   const rewards = await Promise.all([
-    // Voucher 50k - 200 điểm năng lượng (giới hạn 3 lần/user)
-    prisma.reward.create({
-      data: {
-        name: 'Voucher 50k cho sản phẩm Tiger',
-        description: 'Phiếu giảm giá 50,000 VNĐ cho sản phẩm Tiger',
+    // Voucher 50k
+    prisma.reward.upsert({
+      where: { id: 'voucher-50k' },
+      update: {
+        name: 'Voucher 50k',
+        description: 'Phiếu giảm giá 50,000 VNĐ',
         pointsRequired: 200,
         lifeRequired: null,
-        imageUrl: 'https://example.com/voucher50k-tiger.jpg',
         isActive: true,
-        maxPerUser: 3,
+        maxPerUser: null,
       },
-    }),
-    // Voucher 100k - 300 điểm năng lượng (giới hạn 3 lần/user)
-    prisma.reward.create({
-      data: {
-        name: 'Voucher 100k cho sản phẩm Tiger',
-        description: 'Phiếu giảm giá 100,000 VNĐ cho sản phẩm Tiger',
-        pointsRequired: 300,
+      create: {
+        id: 'voucher-50k',
+        name: 'Voucher 50k',
+        description: 'Phiếu giảm giá 50,000 VNĐ',
+        pointsRequired: 200,
         lifeRequired: null,
-        imageUrl: 'https://example.com/voucher100k-tiger.jpg',
+        imageUrl: null,
         isActive: true,
-        maxPerUser: 3,
+        maxPerUser: null,
       },
     }),
-    // Voucher 300k - 500 điểm năng lượng (giới hạn 3 lần/user)
-    prisma.reward.create({
-      data: {
-        name: 'Voucher 300k cho sản phẩm Tiger',
-        description: 'Phiếu giảm giá 300,000 VNĐ cho sản phẩm Tiger',
-        pointsRequired: 500,
+    // Voucher 100k
+    prisma.reward.upsert({
+      where: { id: 'voucher-100k' },
+      update: {
+        name: 'Voucher 100k',
+        description: 'Phiếu giảm giá 100,000 VNĐ',
+        pointsRequired: 1000,
         lifeRequired: null,
-        imageUrl: 'https://example.com/voucher300k-tiger.jpg',
         isActive: true,
-        maxPerUser: 3,
+        maxPerUser: null,
+      },
+      create: {
+        id: 'voucher-100k',
+        name: 'Voucher 100k',
+        description: 'Phiếu giảm giá 100,000 VNĐ',
+        pointsRequired: 1000,
+        lifeRequired: null,
+        imageUrl: null,
+        isActive: true,
+        maxPerUser: null,
       },
     }),
-    // Hộp cơm Tiger - 1 Nhịp sống (giới hạn 1 lần/user)
-    prisma.reward.create({
-      data: {
-        name: 'Hộp cơm Tiger',
-        description: 'Hộp cơm Tiger cao cấp, giữ nhiệt tốt',
-        pointsRequired: 0,
-        lifeRequired: 1,
-        imageUrl: 'https://example.com/lunchbox-tiger.jpg',
+    // Voucher 500k
+    prisma.reward.upsert({
+      where: { id: 'voucher-500k' },
+      update: {
+        name: 'Voucher 500k',
+        description: 'Phiếu giảm giá 500,000 VNĐ',
+        pointsRequired: 5000,
+        lifeRequired: null,
         isActive: true,
-        maxPerUser: 1,
+        maxPerUser: null,
+      },
+      create: {
+        id: 'voucher-500k',
+        name: 'Voucher 500k',
+        description: 'Phiếu giảm giá 500,000 VNĐ',
+        pointsRequired: 5000,
+        lifeRequired: null,
+        imageUrl: null,
+        isActive: true,
+        maxPerUser: null,
       },
     }),
-    // Bình giữ nhiệt Tiger - 2 Nhịp sống (giới hạn 1 lần/user)
-    prisma.reward.create({
-      data: {
-        name: 'Bình giữ nhiệt Tiger',
-        description: 'Bình giữ nhiệt Tiger cao cấp, giữ nhiệt 24h',
-        pointsRequired: 0,
-        lifeRequired: 2,
-        imageUrl: 'https://example.com/thermos-tiger.jpg',
+    // Voucher 1000k
+    prisma.reward.upsert({
+      where: { id: 'voucher-1000k' },
+      update: {
+        name: 'Voucher 1000k',
+        description: 'Phiếu giảm giá 1,000,000 VNĐ',
+        pointsRequired: 10000,
+        lifeRequired: null,
         isActive: true,
-        maxPerUser: 1,
+        maxPerUser: null,
       },
-    }),
-    // Máy xay sinh tố Tiger - 3 Nhịp sống (giới hạn 1 lần/user)
-    prisma.reward.create({
-      data: {
-        name: 'Máy xay sinh tố Tiger',
-        description: 'Máy xay sinh tố Tiger công suất cao, đa năng',
-        pointsRequired: 0,
-        lifeRequired: 3,
-        imageUrl: 'https://example.com/blender-tiger.jpg',
+      create: {
+        id: 'voucher-1000k',
+        name: 'Voucher 1000k',
+        description: 'Phiếu giảm giá 1,000,000 VNĐ',
+        pointsRequired: 10000,
+        lifeRequired: null,
+        imageUrl: null,
         isActive: true,
-        maxPerUser: 1,
-      },
-    }),
-    // Nồi cơm điện Tiger bản thường - 5 Nhịp sống (giới hạn 1 lần/user)
-    prisma.reward.create({
-      data: {
-        name: 'Nồi cơm điện Tiger (bản thường)',
-        description: 'Nồi cơm điện Tiger bản thường, tiết kiệm điện',
-        pointsRequired: 0,
-        lifeRequired: 5,
-        imageUrl: 'https://example.com/rice-cooker-tiger-basic.jpg',
-        isActive: true,
-        maxPerUser: 1,
-      },
-    }),
-    // Nồi cơm điện Tiger cao tần - 10 Nhịp sống (giới hạn 1 lần/user)
-    prisma.reward.create({
-      data: {
-        name: 'Nồi cơm điện Tiger cao tần (phiên bản cao cấp)',
-        description:
-          'Nồi cơm điện Tiger cao tần phiên bản cao cấp, công nghệ IH',
-        pointsRequired: 0,
-        lifeRequired: 10,
-        imageUrl: 'https://example.com/rice-cooker-tiger-premium.jpg',
-        isActive: true,
-        maxPerUser: 1,
+        maxPerUser: null,
       },
     }),
   ]);
+
+  // Deactivate or delete other rewards (optional - keep for reference)
+  // You can uncomment this if you want to remove old rewards
+  // await prisma.reward.updateMany({
+  //   where: {
+  //     id: {
+  //       notIn: ['voucher-50k', 'voucher-100k', 'voucher-500k', 'voucher-1000k'],
+  //     },
+  //   },
+  //   data: {
+  //     isActive: false,
+  //   },
+  // });
 
   // Create sample wishes
   const wishes = await Promise.all([
