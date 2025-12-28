@@ -1,3 +1,14 @@
+// Polyfill for crypto global - required for @nestjs/schedule
+// @nestjs/schedule uses crypto.randomUUID() which requires crypto to be available globally
+import * as nodeCrypto from 'crypto';
+if (typeof globalThis.crypto === 'undefined') {
+  // Expose crypto.randomUUID() for @nestjs/schedule compatibility
+  globalThis.crypto = {
+    randomUUID: () => nodeCrypto.randomUUID(),
+    ...nodeCrypto,
+  } as any;
+}
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
