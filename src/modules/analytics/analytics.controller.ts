@@ -3,10 +3,10 @@ import {
   Get,
   Post,
   Body,
-  Param,
   Query,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,7 +15,12 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
-import { CreateCornerAnalyticsDto } from './dto/create-corner-analytics.dto';
+import {
+  CreateAnalyticsEventsBatchDto,
+  CreateAnalyticsEventDto,
+} from './dto/create-analytics-event.dto';
+import { AnalyticsSummaryQueryDto } from './dto/analytics-summary.dto';
+import { FunnelQueryDto } from './dto/funnel.dto';
 import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Analytics')
@@ -23,61 +28,81 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
-  @Post('corners')
-  @ApiOperation({ summary: 'Record corner analytics' })
-  @ApiResponse({ status: 201, description: 'Analytics recorded successfully' })
+  /**
+   * Public endpoint for ingesting analytics events (batch)
+   * No authentication required - uses sessionId for anonymous tracking
+   */
+  @Post('events')
+  @ApiOperation({ summary: 'Record analytics events (Public, batch)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Events recorded successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid data' })
-  async createCornerAnalytics(
-    @Body() body: { events: CreateCornerAnalyticsDto[] },
+  async ingestEvents(
+    @Body() body: CreateAnalyticsEventsBatchDto,
     @Request() req,
   ) {
     // Optional authentication - if user is logged in, record with userId
     const userId = req.user?.id;
-    return this.analyticsService.createCornerAnalyticsBatch(
+    return this.analyticsService.ingestEvents(
       body.events,
+      body.sessionId,
       userId,
     );
   }
 
-  @Get('corner/:corner/summary')
+  /**
+   * Get analytics summary by page/zone
+   * Uses aggregate table for performance
+   */
+  @Get('summary')
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get corner analytics summary (Admin only)' })
+  @ApiOperation({ summary: 'Get analytics summary by page/zone (Admin only)' })
   @ApiResponse({
     status: 200,
     description: 'Analytics summary retrieved successfully',
   })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getCornerSummary(@Param('corner') corner: string, @Request() req) {
-    return this.analyticsService.getCornerSummary(corner, req.user.id);
+  async getSummary(
+    @Query() query: AnalyticsSummaryQueryDto,
+    @Request() req,
+  ) {
+    // Verify admin
+    const user = req.user;
+    if (!user || user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view analytics');
+    }
+
+    return this.analyticsService.getSummary(query);
   }
 
-  @Get('corners')
+  /**
+   * Get funnel/conversion metrics
+   */
+  @Get('funnel')
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all corner analytics data (Admin only)' })
+  @ApiOperation({ summary: 'Get funnel/conversion metrics (Admin only)' })
   @ApiResponse({
     status: 200,
-    description: 'Analytics data retrieved successfully',
+    description: 'Funnel data retrieved successfully',
   })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getAllCornerAnalytics(@Request() req) {
-    return this.analyticsService.getAllCornerAnalytics(req.user.id);
+  async getFunnel(@Query() query: FunnelQueryDto, @Request() req) {
+    // Verify admin
+    const user = req.user;
+    if (!user || user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view analytics');
+    }
+
+    return this.analyticsService.getFunnel(query);
   }
 
-  @Get('corner/stats')
-  @UseGuards(NextAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all corners analytics stats (Admin only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Analytics stats retrieved successfully',
-  })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getCornerStats(@Request() req) {
-    return this.analyticsService.getCornerStats(req.user.id);
-  }
-
+  /**
+   * Get user analytics history
+   */
   @Get('user')
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
@@ -92,5 +117,60 @@ export class AnalyticsController {
     @Query('limit') limit = 20,
   ) {
     return this.analyticsService.getUserAnalytics(req.user.id, page, limit);
+  }
+
+  // Legacy endpoints (deprecated, kept for backward compatibility)
+  @Post('corners')
+  @ApiOperation({ summary: '[DEPRECATED] Record corner analytics' })
+  @ApiResponse({ status: 201, description: 'Analytics recorded successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid data' })
+  async createCornerAnalytics(
+    @Body() body: { events: any[] },
+    @Request() req,
+  ) {
+    const userId = req.user?.id;
+    return this.analyticsService.createCornerAnalyticsBatch(
+      body.events,
+      userId,
+    );
+  }
+
+  @Get('corner/:corner/summary')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[DEPRECATED] Get corner analytics summary' })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics summary retrieved successfully',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getCornerSummary(@Query('corner') corner: string, @Request() req) {
+    return this.analyticsService.getCornerSummary(corner, req.user.id);
+  }
+
+  @Get('corners')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[DEPRECATED] Get all corner analytics data' })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics data retrieved successfully',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getAllCornerAnalytics(@Request() req) {
+    return this.analyticsService.getAllCornerAnalytics(req.user.id);
+  }
+
+  @Get('corner/stats')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[DEPRECATED] Get all corners analytics stats' })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics stats retrieved successfully',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getCornerStats(@Request() req) {
+    return this.analyticsService.getCornerStats(req.user.id);
   }
 }

@@ -24,8 +24,8 @@ model User {
   referredBy     String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
-  analytics      CornerAnalytics[]
-  pointLogs      PointLog[]
+  analyticsEvents AnalyticsEvent[]
+  pointLogs       PointLog[]
   posts          Post[]
   redeemLogs     RedeemLog[]
   redeemRequests RedeemRequest[]
@@ -111,15 +111,44 @@ model RedeemLog {
   @@map("redeem_logs")
 }
 
-model CornerAnalytics {
-  id        String   @id @default(uuid())
-  userId    String
-  corner    String
-  duration  Int
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+model AnalyticsEvent {
+  id          String    @id @default(uuid())
+  userId      String?
+  sessionId   String
+  isAnonymous Boolean   @default(false)
+  page        String
+  zone        String?
+  component   String?
+  action      String
+  value       Int?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  user        User?     @relation(fields: [userId], references: [id])
 
-  @@map("corner_analytics")
+  @@index([page, zone, action])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
+model AnalyticsAggregate {
+  id          String   @id @default(uuid())
+  page        String
+  zone        String?
+  action    String
+  date        DateTime @db.Date
+  hour        Int      @default(-1) // -1 for daily aggregates, 0-23 for hourly
+  totalEvents Int      @default(0)
+  totalValue  Int?
+  avgValue    Float?
+  uniqueSessions Int   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([page, zone, action, date, hour])
+  @@index([page, zone, date])
+  @@index([date])
+  @@map("analytics_aggregate")
 }
 
 model Reward {
