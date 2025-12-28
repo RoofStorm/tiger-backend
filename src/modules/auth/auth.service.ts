@@ -557,6 +557,97 @@ export class AuthService {
     return this.usersService.sanitizeUser(user);
   }
 
+  async getSession(userId: string, accessToken?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Không tìm thấy người dùng');
+    }
+
+    // If access token is provided, decode it to get expiration time
+    // Otherwise, generate new tokens
+    let tokens: { accessToken: string; refreshToken: string };
+    let expires: Date;
+
+    if (accessToken) {
+      try {
+        // Decode token to get expiration
+        const decoded = this.jwtService.decode(accessToken) as any;
+        if (decoded && decoded.exp) {
+          // Convert expiration timestamp to Date
+          expires = new Date(decoded.exp * 1000);
+        } else {
+          // If can't decode, generate new tokens
+          tokens = await this.generateTokens(userId);
+          const newDecoded = this.jwtService.decode(tokens.accessToken) as any;
+          expires = new Date(newDecoded.exp * 1000);
+        }
+        // Use existing refresh token from database
+        tokens = {
+          accessToken,
+          refreshToken: user.refreshToken || '',
+        };
+      } catch (error) {
+        // If token is invalid, generate new tokens
+        tokens = await this.generateTokens(userId);
+        const decoded = this.jwtService.decode(tokens.accessToken) as any;
+        expires = new Date(decoded.exp * 1000);
+      }
+    } else {
+      // Generate new tokens if no access token provided
+      tokens = await this.generateTokens(userId);
+      const decoded = this.jwtService.decode(tokens.accessToken) as any;
+      expires = new Date(decoded.exp * 1000);
+    }
+
+    // Award daily login bonus (automatically handles duplicate prevention)
+    // This allows users to get daily bonus even if they don't login again
+    // because refresh token is valid for 7 days
+    // pointsAwarded will only be true if points were actually awarded
+    // If user already received bonus today, awardPoints will throw BadRequestException
+    // and pointsAwarded will remain false
+    let pointsAwarded = false;
+    try {
+      await this.pointsService.awardPoints(
+        user.id,
+        POINTS.DAILY_LOGIN_BONUS,
+        'Daily login bonus',
+      );
+      pointsAwarded = true; // Only set to true if award was successful
+      console.log(
+        `🎁 Daily login bonus awarded via session to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
+      );
+    } catch (error) {
+      // Silently fail if daily bonus already awarded or limit reached
+      // This prevents session check failure due to bonus issues
+      if (error instanceof BadRequestException) {
+        console.log(
+          `ℹ️ Daily login bonus already awarded today for ${user.username || user.email}`,
+        );
+      } else {
+        console.error(
+          `❌ Error awarding daily login bonus via session to ${user.username || user.email}:`,
+          error,
+        );
+      }
+    }
+
+    // Reload user to get updated points value
+    const updatedUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    return {
+      user: this.usersService.sanitizeUser(updatedUser || user),
+      expires,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      pointsAwarded,
+    };
+  }
+
   async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
     const { oldPassword, newPassword } = changePasswordDto;
 

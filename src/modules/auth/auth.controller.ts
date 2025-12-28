@@ -134,6 +134,41 @@ export class AuthController {
     return this.authService.getCurrentUser((req as any).user.id);
   }
 
+  @Get('session')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current session information' })
+  @ApiResponse({
+    status: 200,
+    description: 'Session information retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string' },
+            name: { type: 'string' },
+            role: { type: 'string' },
+          },
+        },
+        expires: { type: 'string', format: 'date-time' },
+        accessToken: { type: 'string' },
+        refreshToken: { type: 'string' },
+        pointsAwarded: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getSession(@Req() req: Request) {
+    const authHeader = req.headers.authorization;
+    const accessToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : undefined;
+    return this.authService.getSession((req as any).user.id, accessToken);
+  }
+
   @Post('change-password')
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
