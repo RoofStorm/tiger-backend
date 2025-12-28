@@ -41,21 +41,21 @@ export class AnalyticsAggregationService {
           page,
           zone,
           action,
-          DATE(created_at) as date,
-          EXTRACT(HOUR FROM created_at)::int as hour,
+          DATE("createdAt") as date,
+          EXTRACT(HOUR FROM "createdAt")::int as hour,
           COUNT(*)::bigint as "totalEvents",
           SUM(value)::bigint as "totalValue",
           AVG(value)::float as "avgValue",
-          COUNT(DISTINCT session_id)::bigint as "uniqueSessions"
+          COUNT(DISTINCT "sessionId")::bigint as "uniqueSessions"
         FROM analytics_events
-        WHERE created_at >= ${startTime}
-          AND created_at < ${endTime}
+        WHERE "createdAt" >= ${startTime}
+          AND "createdAt" < ${endTime}
         GROUP BY
           page,
           zone,
           action,
-          DATE(created_at),
-          EXTRACT(HOUR FROM created_at)
+          DATE("createdAt"),
+          EXTRACT(HOUR FROM "createdAt")
         ORDER BY date DESC, hour DESC
       `;
 
@@ -135,19 +135,19 @@ export class AnalyticsAggregationService {
           page,
           zone,
           action,
-          DATE(created_at) as date,
+          DATE("createdAt") as date,
           COUNT(*)::bigint as "totalEvents",
           SUM(value)::bigint as "totalValue",
           AVG(value)::float as "avgValue",
-          COUNT(DISTINCT session_id)::bigint as "uniqueSessions"
+          COUNT(DISTINCT "sessionId")::bigint as "uniqueSessions"
         FROM analytics_events
-        WHERE created_at >= ${yesterday}
-          AND created_at < ${today}
+        WHERE "createdAt" >= ${yesterday}
+          AND "createdAt" < ${today}
         GROUP BY
           page,
           zone,
           action,
-          DATE(created_at)
+          DATE("createdAt")
       `;
 
       // Upsert daily aggregates (hour = -1 for daily aggregates)
