@@ -185,7 +185,7 @@ model RedeemRequest {
   rewardId        String
   receiverName    String?
   receiverPhone   String
-  receiverEmail   String
+  receiverEmail   String      @map("receiver_email")
   receiverAddress String?
   status          RedeemStatus @default(PENDING)
   pointsUsed      Int
