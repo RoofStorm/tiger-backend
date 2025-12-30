@@ -30,6 +30,32 @@ export class PostsController {
     private readonly postService: PostService,
   ) {}
 
+  @Get('feed')
+  @UseGuards(OptionalNextAuthGuard)
+  @ApiOperation({ summary: 'Get posts feed with cursor-based pagination' })
+  @ApiResponse({ status: 200, description: 'Posts retrieved successfully' })
+  async getFeed(
+    @Query('limit') limit?: number,
+    @Query('cursor') cursor?: string,
+    @Query('direction') direction?: 'next' | 'prev',
+    @Query('type') type?: string,
+    @Request() req?: any,
+  ) {
+    const validTypes = ['EMOJI_CARD', 'CONFESSION', 'IMAGE', 'VIDEO', 'CLIP'];
+    const postType =
+      type && validTypes.includes(type) ? (type as any) : undefined;
+
+    return this.postsService.getFeed(
+      {
+        limit: limit ? parseInt(limit.toString(), 10) : 20,
+        cursor,
+        direction: direction || 'next',
+        type: postType,
+      },
+      req?.user?.id,
+    );
+  }
+
   @Get()
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()

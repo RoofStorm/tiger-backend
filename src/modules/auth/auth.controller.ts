@@ -157,6 +157,7 @@ export class AuthController {
         accessToken: { type: 'string' },
         refreshToken: { type: 'string' },
         pointsAwarded: { type: 'boolean' },
+        pointsMessage: { type: 'string' },
       },
     },
   })

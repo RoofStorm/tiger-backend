@@ -645,6 +645,9 @@ export class AuthService {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`
+        : 'Đã cập nhật phiên đăng nhập.',
     };
   }
 

@@ -15,6 +15,7 @@ export class WishesService {
       data: {
         ...createWishDto,
         userId,
+        isHighlighted: true,
       },
       include: {
         user: {

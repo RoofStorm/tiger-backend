@@ -52,7 +52,8 @@ export class PostsService {
       ]);
 
       // Get user stats (isLiked, isShared) if userId is provided
-      let userStatsMap: Record<string, { isLiked: boolean; isShared: boolean }> = {};
+      let userStatsMap: Record<string, { isLiked: boolean; isShared: boolean }> =
+        {};
       if (userId) {
         const postIds = posts.map((post) => post.id);
         const userStats = await this.getBulkUserStats(postIds, userId);
@@ -102,6 +103,141 @@ export class PostsService {
     }
   }
 
+  private encodeCursor(createdAt: Date, id: string): string {
+    return Buffer.from(`${createdAt.toISOString()}|${id}`).toString('base64');
+  }
+
+  private decodeCursor(cursor: string): { createdAt: Date; id: string } | null {
+    if (!cursor) return null;
+    try {
+      const decoded = Buffer.from(cursor, 'base64').toString('ascii');
+      const [dateStr, id] = decoded.split('|');
+      if (!dateStr || !id) return null;
+      return { createdAt: new Date(dateStr), id };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async getFeed(
+    params: {
+      limit?: number;
+      cursor?: string;
+      direction?: 'next' | 'prev';
+      type?: PostType;
+    },
+    userId?: string,
+  ) {
+    const { limit = 20, cursor, direction = 'next', type } = params;
+    const decodedCursor = this.decodeCursor(cursor);
+
+    const where: any = {};
+    if (type) where.type = type;
+
+    if (decodedCursor) {
+      const { createdAt, id } = decodedCursor;
+      if (direction === 'next') {
+        // Fetch older posts: (createdAt < current) OR (createdAt == current AND id < currentId)
+        where.OR = [
+          { createdAt: { lt: createdAt } },
+          {
+            AND: [{ createdAt: { equals: createdAt } }, { id: { lt: id } }],
+          },
+        ];
+      } else {
+        // Fetch newer posts: (createdAt > current) OR (createdAt == current AND id > currentId)
+        where.OR = [
+          { createdAt: { gt: createdAt } },
+          {
+            AND: [{ createdAt: { equals: createdAt } }, { id: { gt: id } }],
+          },
+        ];
+      }
+    }
+
+    const posts = await this.prisma.post.findMany({
+      where,
+      take: direction === 'next' ? limit + 1 : -(limit + 1),
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+
+    const hasMore = posts.length > limit;
+    const finalPosts = hasMore
+      ? direction === 'next'
+        ? posts.slice(0, limit)
+        : posts.slice(1)
+      : posts;
+
+    // Get user stats if userId is provided
+    let userStatsMap: Record<string, { isLiked: boolean; isShared: boolean }> =
+      {};
+    if (userId && finalPosts.length > 0) {
+      const postIds = finalPosts.map((post) => post.id);
+      const userStats = await this.getBulkUserStats(postIds, userId);
+      userStatsMap = userStats.reduce(
+        (acc, stat) => {
+          acc[stat.postId] = {
+            isLiked: stat.isLiked,
+            isShared: stat.isShared,
+          };
+          return acc;
+        },
+        {} as Record<string, { isLiked: boolean; isShared: boolean }>,
+      );
+    }
+
+    const postsWithCounts = finalPosts.map((post) => {
+      const basePost = {
+        ...post,
+        imageUrl: post.url,
+      };
+      if (userId && userStatsMap[post.id]) {
+        return {
+          ...basePost,
+          isLiked: userStatsMap[post.id].isLiked,
+          isShared: userStatsMap[post.id].isShared,
+        };
+      }
+      return basePost;
+    });
+
+    const nextCursor =
+      postsWithCounts.length > 0 && (direction === 'next' ? hasMore : true)
+        ? this.encodeCursor(
+            postsWithCounts[postsWithCounts.length - 1].createdAt,
+            postsWithCounts[postsWithCounts.length - 1].id,
+          )
+        : null;
+
+    const prevCursor =
+      postsWithCounts.length > 0 && (direction === 'prev' ? hasMore : true)
+        ? this.encodeCursor(
+            postsWithCounts[0].createdAt,
+            postsWithCounts[0].id,
+          )
+        : null;
+
+    return {
+      posts: postsWithCounts,
+      pagination: {
+        limit,
+        nextCursor,
+        prevCursor,
+        hasNext: direction === 'next' ? hasMore : true,
+        hasPrev: direction === 'prev' ? hasMore : true,
+      },
+    };
+  }
+
   async findOne(id: string) {
     const post = await this.prisma.post.findUnique({
       where: { id },
@@ -148,6 +284,7 @@ export class PostsService {
         caption: createPostDto.caption,
         url: url,
         userId,
+        isHighlighted: true,
       },
       include: {
         user: {
