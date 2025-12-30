@@ -6,7 +6,6 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAnalyticsEventDto } from './dto/create-analytics-event.dto';
 import { AnalyticsSummaryQueryDto } from './dto/analytics-summary.dto';
-import { FunnelQueryDto } from './dto/funnel.dto';
 import { AnalyticsQueueService } from './analytics-queue.service';
 
 @Injectable()
@@ -70,195 +69,244 @@ export class AnalyticsService {
 
   /**
    * Get analytics summary by page/zone
-   * ONLY queries aggregate table for performance (no raw events)
+   * Queries directly from raw events for perfect accuracy and sync with Analysis API
    */
   async getSummary(query: AnalyticsSummaryQueryDto) {
-    const { page, zone } = query;
+    const { page, zone, from, to } = query;
 
-    // Build where clause for aggregate table
+    // Build where clause
     const where: any = {};
-    if (page) where.page = page;
-    if (zone) where.zone = zone;
-
-    // Get aggregated data from aggregate table only (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const aggregates = await this.prisma.analyticsAggregate.findMany({
-      where: {
-        ...where,
-        date: {
-          gte: thirtyDaysAgo,
-        },
-      },
-      orderBy: { date: 'desc' },
-    });
-
-    if (aggregates.length === 0) {
-      return {
-        page: page || 'all',
-        zone: zone || 'all',
-        totalEvents: 0,
-        avgTime: 0,
-        totalClicks: 0,
-        uniqueSessions: 0,
-        completionRate: 0,
-      };
+    if (page) {
+      where.page = page;
+      if (zone) {
+        where.zone = zone;
+      } else {
+        where.zone = null;
+      }
     }
 
-    // Calculate totals from aggregate data
-    const totalEvents = aggregates.reduce(
-      (sum, agg) => sum + agg.totalEvents,
-      0,
-    );
-    const totalClicks = aggregates
-      .filter((agg) => agg.action === 'click')
-      .reduce((sum, agg) => sum + agg.totalEvents, 0);
-    
-    // Calculate avg time from page_view/zone_view/view_end/complete actions (actions with duration value)
-    const durationAggregates = aggregates.filter(
-      (agg) => 
-        agg.action === 'page_view' ||
-        agg.action === 'zone_view' || 
-        agg.action === 'view_end' || 
-        agg.action === 'complete',
-    );
-    const totalDuration = durationAggregates.reduce(
-      (sum, agg) => sum + (agg.totalValue || 0),
-      0,
-    );
-    const totalDurationEvents = durationAggregates.reduce(
-      (sum, agg) => sum + agg.totalEvents,
-      0,
-    );
-    const avgTime = totalDurationEvents > 0 ? totalDuration / totalDurationEvents : 0;
+    // Determine date range
+    let startDate: Date;
+    let endDate: Date;
 
-    // Get unique sessions from aggregate (sum of uniqueSessions)
-    const uniqueSessionsMap = new Map<string, number>();
-    aggregates.forEach((agg) => {
-      const key = `${agg.page}_${agg.zone || ''}_${agg.date}`;
-      uniqueSessionsMap.set(key, Math.max(uniqueSessionsMap.get(key) || 0, agg.uniqueSessions));
-    });
-    const uniqueSessions = Array.from(uniqueSessionsMap.values()).reduce((sum, val) => sum + val, 0);
+    if (from && to) {
+      startDate = new Date(from);
+      endDate = new Date(to);
+      endDate.setHours(23, 59, 59, 999);
+      if (startDate > endDate) {
+        throw new BadRequestException(
+          'From date must be before or equal to to date',
+        );
+      }
+      const daysDiff = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysDiff > 90) {
+        throw new BadRequestException('Date range cannot exceed 90 days');
+      }
+    } else {
+      endDate = new Date();
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+    }
 
-    // Calculate completion rate
-    const startEvents = aggregates
-      .filter((agg) => agg.action === 'start')
-      .reduce((sum, agg) => sum + agg.totalEvents, 0);
-    const completeEvents = aggregates
-      .filter((agg) => agg.action === 'complete')
-      .reduce((sum, agg) => sum + agg.totalEvents, 0);
-    const completionRate =
-      startEvents > 0 ? completeEvents / startEvents : 0;
+    const timeFilter = { gte: startDate, lte: endDate };
+
+    // Get all stats in parallel from raw events table
+    const [totalViews, clickStats, durationStats, uniqueSessionsResult] =
+      await Promise.all([
+        // 1. Total Views
+        this.prisma.analyticsEvent.count({
+          where: {
+            ...where,
+            action: { in: ['page_view', 'zone_view', 'view'] },
+            createdAt: timeFilter,
+          },
+        }),
+        // 2. Total Clicks (click + start + submit)
+        this.prisma.analyticsEvent.count({
+          where: {
+            ...where,
+            action: { in: ['click', 'start', 'submit'] },
+            createdAt: timeFilter,
+          },
+        }),
+        // 3. Durations (Sum and Count)
+        this.prisma.analyticsEvent.aggregate({
+          where: {
+            ...where,
+            action: { in: ['page_view', 'zone_view', 'view_end', 'complete'] },
+            value: { gt: 0 },
+            createdAt: timeFilter,
+          },
+          _sum: { value: true },
+          _count: { _all: true },
+        }),
+        // 4. Unique Sessions
+        this.prisma.analyticsEvent.groupBy({
+          by: ['sessionId'],
+          where: { ...where, createdAt: timeFilter },
+        }),
+      ]);
+
+    const totalDurations = durationStats._sum.value || 0;
+    const avgDuration = totalViews > 0 ? totalDurations / totalViews : 0;
 
     return {
       page: page || 'all',
       zone: zone || 'all',
-      totalEvents,
-      avgTime: Math.round(avgTime * 100) / 100,
-      totalClicks,
-      uniqueSessions,
-      completionRate: Math.round(completionRate * 1000) / 1000,
+      dateRange: {
+        from: startDate.toISOString().split('T')[0],
+        to: endDate.toISOString().split('T')[0],
+      },
+      totalViews,
+      totalClicks: clickStats,
+      totalDurations: Math.round(totalDurations * 100) / 100,
+      avgDuration: Math.round(avgDuration * 100) / 100,
+      uniqueSessions: uniqueSessionsResult.length,
     };
   }
 
   /**
-   * Calculate funnel/conversion metrics
+   * Get raw analytics data in table format
+   * Returns individual records matching filters, not aggregated totals
+   * Marketing can read and process this data directly (like Excel)
    */
-  async getFunnel(query: FunnelQueryDto) {
-    const { page, zone, steps } = query;
+  async getAnalysis(query: any) {
+    const { from, to, page, zone, action: actionFilter, limit = 100, cursor } =
+      query;
 
-    if (!steps || steps.length < 2) {
-      throw new BadRequestException('At least 2 steps are required');
+    // Validate date range
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999); // End of day
+
+    if (fromDate > toDate) {
+      throw new BadRequestException(
+        'From date must be before or equal to to date',
+      );
     }
 
-    // Build where clause
-    const where: any = {
-      page,
-      action: { in: steps },
-    };
-    if (zone) where.zone = zone;
+    // Validate date range is not too large (max 90 days for performance)
+    const daysDiff = Math.ceil(
+      (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (daysDiff > 90) {
+      throw new BadRequestException('Date range cannot exceed 90 days');
+    }
 
-    // Get events for the last 30 days
-    const events = await this.prisma.analyticsEvent.findMany({
-      where: {
-        ...where,
-        createdAt: {
-          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        },
+    const limitNum = limit ? parseInt(limit.toString(), 10) : 100;
+    if (limitNum < 1 || limitNum > 1000) {
+      throw new BadRequestException('Limit must be between 1 and 1000');
+    }
+
+    // Build where clause for raw events
+    // If only page is provided, only count records with that page and zone = null
+    // If both page and zone are provided, count records matching both
+    const eventWhere: any = {
+      createdAt: {
+        gte: fromDate,
+        lte: toDate,
       },
-      select: {
-        sessionId: true,
-        action: true,
+      // Filter logic: Clicks, Durations (value > 0), and other meaningful actions
+      // Exclude pure views (no duration) to focus on interactions
+      AND: [
+        {
+          OR: [
+            { action: 'click' },
+            { value: { gt: 0 } },
+            {
+              action: {
+                notIn: ['page_view', 'zone_view', 'view', 'click'],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    if (page) {
+      eventWhere.page = page;
+      if (zone) {
+        eventWhere.zone = zone;
+      } else {
+        // If only page is provided, only count page-level records (zone = null)
+        eventWhere.zone = null;
+      }
+    }
+    if (actionFilter) eventWhere.action = actionFilter;
+
+    // Get all events from analytics_events table (raw data) with pagination
+    const events = await this.prisma.analyticsEvent.findMany({
+      where: eventWhere,
+      take: limitNum + 1,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: {
+        createdAt: 'desc',
       },
     });
 
-    // Group by session and track which steps each session completed
-    const sessionSteps = new Map<string, Set<string>>();
-    for (const event of events) {
-      if (!sessionSteps.has(event.sessionId)) {
-        sessionSteps.set(event.sessionId, new Set());
-      }
-      sessionSteps.get(event.sessionId)!.add(event.action);
-    }
+    const hasMore = events.length > limitNum;
+    const paginatedEvents = events.slice(0, limitNum);
 
-    // Calculate funnel steps
-    const funnelSteps = [];
-    let previousCount = 0;
+    const rows = paginatedEvents.map((event) => {
+      let action = event.action;
+      let unit = 'event';
+      let value = event.value || 1;
 
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
-      let count = 0;
-
-      if (i === 0) {
-        // For first step, count all sessions that have this action
-        count = Array.from(sessionSteps.values()).filter((s) =>
-          s.has(step),
-        ).length;
-        previousCount = count;
+      // Normalize action and unit
+      if (
+        ['page_view', 'zone_view', 'view_end', 'complete'].includes(
+          event.action,
+        ) &&
+        event.value
+      ) {
+        action = 'duration';
+        unit = 'seconds';
+      } else if (event.action === 'click') {
+        unit = 'click';
       } else {
-        // For subsequent steps, count sessions that completed all previous steps AND current step
-        for (const [sessionId, completedSteps] of sessionSteps.entries()) {
-          // Check if session completed all previous steps (0 to i-1) and current step (i)
-          let hasAllPrevious = true;
-          for (let j = 0; j <= i; j++) {
-            if (!completedSteps.has(steps[j])) {
-              hasAllPrevious = false;
-              break;
-            }
-          }
-          if (hasAllPrevious) {
-            count++;
-          }
-        }
+        // Other actions
+        unit = `${event.action}s`;
+        if (event.action === 'start') unit = 'starts';
+        else if (event.action === 'submit') unit = 'submits';
+        else if (event.action === 'complete') unit = 'completions';
+        else if (event.action === 'upload') unit = 'uploads';
       }
 
-      const percentage =
-        i === 0 ? 100 : previousCount > 0 ? (count / previousCount) * 100 : 0;
+      return {
+        date: event.createdAt.toISOString().split('T')[0],
+        timestamp: event.createdAt.toISOString(),
+        page: event.page,
+        zone: event.zone || null,
+        action,
+        component: event.component || null,
+        value,
+        unit,
+        metadata: (event.metadata as Record<string, any>) || {},
+      };
+    });
 
-      funnelSteps.push({
-        step,
-        count,
-        percentage: Math.round(percentage * 100) / 100,
-      });
-
-      // Update previousCount for next iteration
-      if (i > 0) {
-        previousCount = count;
-      }
-    }
-
-    // Overall conversion rate (first to last step)
-    const firstStepCount = funnelSteps[0]?.count || 0;
-    const lastStepCount = funnelSteps[funnelSteps.length - 1]?.count || 0;
-    const conversionRate =
-      firstStepCount > 0 ? lastStepCount / firstStepCount : 0;
+    const nextCursor = hasMore
+      ? paginatedEvents[paginatedEvents.length - 1].id
+      : null;
 
     return {
-      page,
-      zone: zone || null,
-      steps: funnelSteps,
-      conversionRate: Math.round(conversionRate * 1000) / 1000,
+      columns: [
+        'date',
+        'timestamp',
+        'page',
+        'zone',
+        'action',
+        'component',
+        'value',
+        'unit',
+        'metadata',
+      ],
+      rows,
+      nextCursor,
+      count: rows.length,
+      hasMore,
     };
   }
 
@@ -287,31 +335,6 @@ export class AnalyticsService {
     );
   }
 
-  async getUserAnalytics(userId: string, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
-
-    const [analytics, total] = await Promise.all([
-      this.prisma.analyticsEvent.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.analyticsEvent.count({
-        where: { userId },
-      }),
-    ]);
-
-    return {
-      analytics,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    };
-  }
 
   async getCornerStats(adminId: string) {
     // Verify admin
@@ -368,5 +391,102 @@ export class AnalyticsService {
     });
 
     return analytics;
+  }
+
+  /**
+   * Get all available actions, pages, zones, and components from analytics data
+   * Useful for admin to see what data is available in the system
+   */
+  async getAvailableData() {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Get distinct values from aggregate table (more efficient)
+    const aggregates = await this.prisma.analyticsAggregate.findMany({
+      where: {
+        date: {
+          gte: thirtyDaysAgo,
+        },
+      },
+      select: {
+        page: true,
+        zone: true,
+        action: true,
+      },
+    });
+
+    // Get distinct components from events (not in aggregate table)
+    const events = await this.prisma.analyticsEvent.findMany({
+      where: {
+        createdAt: {
+          gte: thirtyDaysAgo,
+        },
+        component: {
+          not: null,
+        },
+      },
+      select: {
+        component: true,
+      },
+      distinct: ['component'],
+    });
+
+    // Extract unique values
+    const pages = new Set<string>();
+    const zonesByPage = new Map<string, Set<string>>(); // Group zones by page
+    const actions = new Set<string>();
+    const components = new Set<string>();
+
+    aggregates.forEach((agg) => {
+      if (agg.page) {
+        pages.add(agg.page);
+        
+        // Group zones by page
+        if (agg.zone) {
+          if (!zonesByPage.has(agg.page)) {
+            zonesByPage.set(agg.page, new Set<string>());
+          }
+          zonesByPage.get(agg.page)!.add(agg.zone);
+        }
+      }
+      if (agg.action) actions.add(agg.action);
+    });
+
+    events.forEach((event) => {
+      if (event.component) components.add(event.component);
+    });
+
+    // Count usage for each action
+    const actionCounts = new Map<string, number>();
+    aggregates.forEach((agg) => {
+      const count = actionCounts.get(agg.action) || 0;
+      actionCounts.set(agg.action, count + 1);
+    });
+
+    const actionsWithCounts = Array.from(actions)
+      .map((action) => ({
+        action,
+        count: actionCounts.get(action) || 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    // Convert zonesByPage Map to object with sorted arrays
+    const zonesByPageObject: Record<string, string[]> = {};
+    zonesByPage.forEach((zones, page) => {
+      zonesByPageObject[page] = Array.from(zones).sort();
+    });
+
+    return {
+      pages: Array.from(pages).sort(),
+      zonesByPage: zonesByPageObject, // Zones grouped by page
+      actions: actionsWithCounts,
+      components: Array.from(components).sort(),
+      commonFunnelSteps: ['start', 'submit', 'complete', 'click', 'page_view'],
+      totalRecords: aggregates.length,
+      dateRange: {
+        from: thirtyDaysAgo.toISOString(),
+        to: new Date().toISOString(),
+      },
+    };
   }
 }

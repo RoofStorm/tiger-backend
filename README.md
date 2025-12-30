@@ -173,9 +173,11 @@ Once the server is running, visit:
 - `GET /api/redeems/admin` - Get all redeems (Admin only)
 
 #### Analytics
-- `POST /api/analytics/corner` - Record corner analytics
-- `GET /api/analytics/user` - Get user analytics
-- `GET /api/analytics/corner/:corner/summary` - Get corner summary (Admin only)
+- `POST /api/analytics/events` - Record analytics events (batch)
+- `GET /api/analytics/summary` - Get analytics summary by page/zone (Admin only) - [📖 Full Spec](./docs/ANALYTICS_SUMMARY_AND_AVAILABLE_DATA_API.md#api-get-analytics-summary)
+- `GET /api/analytics/funnel` - Get funnel/conversion metrics (Admin only) - [📖 Full Spec](./docs/ANALYTICS_FUNNEL_API.md)
+- `GET /api/analytics/user` - Get user analytics history
+- `GET /api/analytics/available-data` - Get all available pages, zones, actions (Admin only) - [📖 Full Spec](./docs/ANALYTICS_SUMMARY_AND_AVAILABLE_DATA_API.md#api-get-available-data)
 
 ## 🧪 Testing
 

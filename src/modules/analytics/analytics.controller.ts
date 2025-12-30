@@ -7,6 +7,7 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,7 +21,7 @@ import {
   CreateAnalyticsEventDto,
 } from './dto/create-analytics-event.dto';
 import { AnalyticsSummaryQueryDto } from './dto/analytics-summary.dto';
-import { FunnelQueryDto } from './dto/funnel.dto';
+import { AnalyticsAnalysisQueryDto } from './dto/analytics-analysis.dto';
 import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Analytics')
@@ -55,16 +56,25 @@ export class AnalyticsController {
   /**
    * Get analytics summary by page/zone
    * Uses aggregate table for performance
+   * Supports optional date range filter (from/to), defaults to last 30 days
    */
   @Get('summary')
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get analytics summary by page/zone (Admin only)' })
+  @ApiOperation({
+    summary: 'Get analytics summary by page/zone (Admin only)',
+    description:
+      'Returns aggregated analytics summary. Supports optional date range (from/to), defaults to last 30 days if not provided. Max date range: 90 days.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Analytics summary retrieved successfully',
   })
   @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid date range',
+  })
   async getSummary(
     @Query() query: AnalyticsSummaryQueryDto,
     @Request() req,
@@ -79,44 +89,73 @@ export class AnalyticsController {
   }
 
   /**
-   * Get funnel/conversion metrics
+   * Get raw analytics data in table format
+   * Raw but readable - each row represents one meaningful behavior
+   * Marketing can read and process this data directly (like Excel)
+   * 
+   * Principles:
+   * - 1 row = 1 meaningful behavior
+   * - No inferred percentages or funnel logic
+   * - Readable like Excel
+   * - No need to understand internal event schema
    */
-  @Get('funnel')
+  @Get('analysis')
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get funnel/conversion metrics (Admin only)' })
+  @ApiOperation({
+    summary: 'Get raw analytics data in table format (Admin only)',
+    description:
+      'Returns raw analytics data in table format for reporting. Each row represents one meaningful behavior. ' +
+      'Marketing can read and process this data directly. Supports filtering by date range, page, zone, and action. ' +
+      'Max date range: 90 days. Supports pagination with limit and cursor.',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Funnel data retrieved successfully',
+    description: 'Raw analytics data retrieved successfully in table format',
   })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getFunnel(@Query() query: FunnelQueryDto, @Request() req) {
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid date range',
+  })
+  async getAnalysis(
+    @Query() query: AnalyticsAnalysisQueryDto,
+    @Request() req,
+  ) {
     // Verify admin
     const user = req.user;
     if (!user || user.role !== 'ADMIN') {
       throw new ForbiddenException('Only admins can view analytics');
     }
 
-    return this.analyticsService.getFunnel(query);
+    return this.analyticsService.getAnalysis(query);
   }
 
   /**
-   * Get user analytics history
+   * Get all available actions, pages, zones, and components
+   * Useful for admin to see what data is available in the system
    */
-  @Get('user')
+  @Get('available-data')
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get user analytics history' })
+  @ApiOperation({
+    summary: 'Get all available analytics data (Admin only)',
+    description:
+      'Returns list of all pages, zones, actions, and components available in the system (last 30 days)',
+  })
   @ApiResponse({
     status: 200,
-    description: 'User analytics retrieved successfully',
+    description: 'Available data retrieved successfully',
   })
-  async getUserAnalytics(
-    @Request() req,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
-  ) {
-    return this.analyticsService.getUserAnalytics(req.user.id, page, limit);
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getAvailableData(@Request() req) {
+    // Verify admin
+    const user = req.user;
+    if (!user || user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view analytics');
+    }
+
+    return this.analyticsService.getAvailableData();
   }
 
   // Legacy endpoints (deprecated, kept for backward compatibility)
