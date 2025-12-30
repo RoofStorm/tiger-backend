@@ -176,6 +176,7 @@ model Wish {
   updatedAt     DateTime @updatedAt
   user          User     @relation(fields: [userId], references: [id])
 
+  @@index([isHighlighted, createdAt(sort: Desc), id(sort: Desc)], name: "idx_wishes_highlighted_created_id")
   @@map("wishes")
 }
 

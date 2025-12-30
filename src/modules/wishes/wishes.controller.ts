@@ -80,18 +80,17 @@ export class WishesController {
   }
 
   @Get('highlighted')
-  @ApiOperation({ summary: 'Get highlighted wishes (public)' })
+  @ApiOperation({ summary: 'Get highlighted wishes (public) with cursor pagination' })
   @ApiResponse({
     status: 200,
     description: 'Highlighted wishes retrieved successfully',
   })
   async getHighlightedWishes(
-    @Query('page') page = 1,
     @Query('limit') limit = 20,
+    @Query('cursor') cursor?: string,
   ) {
-    const pageNum = parseInt(page.toString(), 10);
     const limitNum = parseInt(limit.toString(), 10);
-    return this.wishesService.getHighlightedWishes(pageNum, limitNum);
+    return this.wishesService.getHighlightedWishes(limitNum, cursor);
   }
 
   @Get('user')
