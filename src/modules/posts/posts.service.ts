@@ -125,14 +125,22 @@ export class PostsService {
       cursor?: string;
       direction?: 'next' | 'prev';
       type?: PostType;
+      highlighted?: boolean;
     },
     userId?: string,
   ) {
-    const { limit = 20, cursor, direction = 'next', type } = params;
+    const {
+      limit = 20,
+      cursor,
+      direction = 'next',
+      type,
+      highlighted = true,
+    } = params;
     const decodedCursor = this.decodeCursor(cursor);
 
     const where: any = {};
     if (type) where.type = type;
+    if (highlighted !== undefined) where.isHighlighted = highlighted;
 
     if (decodedCursor) {
       const { createdAt, id } = decodedCursor;

@@ -39,6 +39,7 @@ export class PostsController {
     @Query('cursor') cursor?: string,
     @Query('direction') direction?: 'next' | 'prev',
     @Query('type') type?: string,
+    @Query('highlighted') highlighted?: string,
     @Request() req?: any,
   ) {
     const validTypes = ['EMOJI_CARD', 'CONFESSION', 'IMAGE', 'VIDEO', 'CLIP'];
@@ -51,6 +52,12 @@ export class PostsController {
         cursor,
         direction: direction || 'next',
         type: postType,
+        highlighted:
+          highlighted === 'true'
+            ? true
+            : highlighted === 'false'
+              ? false
+              : undefined,
       },
       req?.user?.id,
     );
