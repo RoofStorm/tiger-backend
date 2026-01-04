@@ -15,6 +15,7 @@ import { WishesModule } from './modules/wishes/wishes.module';
 import { MoodCardsModule } from './modules/mood-cards/mood-cards.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ReferralModule } from './modules/referral/referral.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { GuardsModule } from './common/guards/guards.module';
 import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
 
@@ -54,6 +55,7 @@ import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
     MoodCardsModule,
     AdminModule,
     ReferralModule,
+    NotificationsModule,
     GuardsModule,
   ],
 })

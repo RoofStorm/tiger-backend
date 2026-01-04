@@ -34,6 +34,9 @@ export class RewardsService {
       this.prisma.reward.count({ where }),
     ]);
 
+    // Enhanced rewards with canRedeem status if userId is provided
+    let enhancedRewards = rewards.map(r => ({ ...r, canRedeem: false }));
+
     // Get user data if userId is provided
     let userData = null;
     if (userId) {
@@ -46,12 +49,11 @@ export class RewardsService {
             email: true,
             points: true,
             redeemRequests: {
-              select: {
-                id: true,
-                rewardId: true,
-                status: true,
-              },
+              include: {
+                reward: true
+              }
             },
+            monthlyRankings: true,
           },
         });
 
@@ -61,13 +63,73 @@ export class RewardsService {
             name: user.name,
             email: user.email,
             points: user.points,
-            lifePoints: Math.floor(user.points / 1000), // Convert points to life points
-            redeemRequests: user.redeemRequests,
+            lifePoints: Math.floor(user.points / 1000),
+            redeemRequests: user.redeemRequests.map(rr => ({
+              id: rr.id,
+              rewardId: rr.rewardId,
+              status: rr.status
+            })),
           };
+
+          // Calculate canRedeem for each reward
+          const hasClaimedMonthlyRank = user.redeemRequests.some(
+            rr => rr.reward.rewardCategory === 'MONTHLY_RANK'
+          );
+
+          enhancedRewards = rewards.map(reward => {
+            let canRedeem = false;
+
+            // SPECIAL CASE: Monthly Rank Winners for fixed vouchers
+            if (reward.id === 'voucher-1000k') {
+              const isRank1Winner = user.monthlyRankings.some(mr => mr.rank === 1);
+              const hasAlreadyRedeemedAsWinner = user.redeemRequests.some(
+                rr => rr.rewardId === 'voucher-1000k' && rr.pointsUsed === 0 && rr.status !== 'REJECTED'
+              );
+              
+              if (isRank1Winner && !hasAlreadyRedeemedAsWinner) {
+                canRedeem = true;
+              }
+            } else if (reward.id === 'voucher-500k') {
+              const isRank2Winner = user.monthlyRankings.some(mr => mr.rank === 2);
+              const hasAlreadyRedeemedAsWinner = user.redeemRequests.some(
+                rr => rr.rewardId === 'voucher-500k' && rr.pointsUsed === 0 && rr.status !== 'REJECTED'
+              );
+              
+              if (isRank2Winner && !hasAlreadyRedeemedAsWinner) {
+                canRedeem = true;
+              }
+            }
+
+            // If not already set by winner logic, use standard logic
+            if (!canRedeem) {
+              if (reward.rewardCategory === 'MONTHLY_RANK') {
+                // Rule for Monthly Rank:
+                // 1. Must be in MonthlyPostRanking for this month and rank
+                // 2. Must not have claimed any monthly rank reward before
+                const isWinner = user.monthlyRankings.some(
+                  mr => mr.month.getTime() === reward.month?.getTime() && mr.rank === reward.rank
+                );
+                canRedeem = isWinner && !hasClaimedMonthlyRank && reward.isActive;
+              } else {
+                // Rule for Point rewards:
+                // 1. Enough points
+                // 2. Within per-user limit
+                const userRedeemsCount = user.redeemRequests.filter(
+                  rr => rr.rewardId === reward.id && rr.status !== 'REJECTED'
+                ).length;
+                
+                const enoughPoints = user.points >= reward.pointsRequired;
+                const withinLimit = reward.maxPerUser ? userRedeemsCount < reward.maxPerUser : true;
+                
+                canRedeem = enoughPoints && withinLimit && reward.isActive;
+              }
+            }
+
+            return { ...reward, canRedeem };
+          });
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
-        // Continue without user data if there's an error
       }
     }
 
@@ -84,7 +146,7 @@ export class RewardsService {
     }
 
     return {
-      data: rewards,
+      data: enhancedRewards,
       user: userData,
       total,
       page: pageNum,

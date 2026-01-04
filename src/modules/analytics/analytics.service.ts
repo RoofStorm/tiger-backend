@@ -489,4 +489,47 @@ export class AnalyticsService {
       },
     };
   }
+
+  async getMonthlyRankings(page = 1, limit = 20) {
+    // Ensure page and limit are numbers
+    const pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
+    const limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
+
+    const skip = (pageNum - 1) * limitNum;
+
+    const [rankings, total] = await Promise.all([
+      this.prisma.monthlyPostRanking.findMany({
+        skip,
+        take: limitNum,
+        orderBy: [{ month: 'desc' }, { rank: 'asc' }],
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
+          post: {
+            select: {
+              id: true,
+              type: true,
+              url: true,
+              caption: true,
+              likeCount: true,
+            },
+          },
+        },
+      }),
+      this.prisma.monthlyPostRanking.count(),
+    ]);
+
+    return {
+      data: rankings,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    };
+  }
 }

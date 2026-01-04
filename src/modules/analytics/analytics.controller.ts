@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
+import { RankingService } from './ranking.service';
 import {
   CreateAnalyticsEventsBatchDto,
   CreateAnalyticsEventDto,
@@ -27,7 +28,10 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 @ApiTags('Analytics')
 @Controller('api/analytics')
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(
+    private readonly analyticsService: AnalyticsService,
+    private readonly rankingService: RankingService,
+  ) {}
 
   /**
    * Public endpoint for ingesting analytics events (batch)
@@ -211,5 +215,41 @@ export class AnalyticsController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getCornerStats(@Request() req) {
     return this.analyticsService.getCornerStats(req.user.id);
+  }
+
+  @Get('monthly-rankings')
+  @ApiOperation({ summary: 'Get monthly rankings history' })
+  @ApiResponse({
+    status: 200,
+    description: 'Monthly rankings retrieved successfully',
+  })
+  async getMonthlyRankings(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+  ) {
+    return this.analyticsService.getMonthlyRankings(page, limit);
+  }
+
+  @Post('monthly-ranking/trigger')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Trigger monthly ranking calculation manually (Admin only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Monthly ranking triggered successfully',
+  })
+  async triggerMonthlyRanking(
+    @Body() body: { year: number; month: number },
+    @Request() req,
+  ) {
+    // Verify admin
+    const user = req.user;
+    if (!user || user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can trigger ranking');
+    }
+
+    return this.rankingService.triggerManualRanking(body.year, body.month);
   }
 }

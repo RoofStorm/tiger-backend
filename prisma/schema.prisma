@@ -29,13 +29,35 @@ model User {
   posts          Post[]
   redeemLogs     RedeemLog[]
   redeemRequests RedeemRequest[]
+  monthlyRankings MonthlyPostRanking[]
   userLimits     UserLimit[]
   userActions    UserPostAction[]
   referrer       User?             @relation("UserReferrals", fields: [referredBy], references: [id])
   referrals      User[]            @relation("UserReferrals")
   wishes         Wish[]
+  notifications  Notification[]
 
   @@map("users")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  metadata  Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  MONTHLY_RANK_WIN
 }
 
 model Post {
@@ -52,6 +74,7 @@ model Post {
   commentCount  Int              @default(0)
   user          User             @relation(fields: [userId], references: [id])
   actions       UserPostAction[]
+  monthlyRankings MonthlyPostRanking[]
 
   @@map("posts")
 }
@@ -155,7 +178,7 @@ model Reward {
   id             String          @id @default(uuid())
   name           String
   description    String
-  pointsRequired Int
+  pointsRequired Int             @default(0)
   lifeRequired   Int?
   imageUrl       String?
   isActive       Boolean         @default(true)
@@ -164,7 +187,29 @@ model Reward {
   updatedAt      DateTime        @updatedAt
   redeemRequests RedeemRequest[]
 
+  // New fields for Monthly Rank
+  rewardType     RewardType      @default(POINT_REDEEM)
+  rewardCategory RewardCategory  @default(POINT)
+  rank           Int?            // 1 | 2
+  month          DateTime?       // 2024-01-01
+
   @@map("rewards")
+}
+
+model MonthlyPostRanking {
+  id        String   @id @default(uuid())
+  month     DateTime
+  rank      Int      // 1, 2
+  userId    String
+  postId    String
+  likeCount Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+
+  @@unique([month, rank])
+  @@map("monthly_post_rankings")
 }
 
 model Wish {
@@ -199,6 +244,15 @@ model RedeemRequest {
   @@map("redeem_requests")
 }
 
+enum RewardType {
+  POINT_REDEEM
+  MONTHLY_RANK
+}
+
+enum RewardCategory {
+  POINT
+  MONTHLY_RANK
+}
 
 enum LimitType {
   POST_WEEKLY

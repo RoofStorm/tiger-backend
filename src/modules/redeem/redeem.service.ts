@@ -52,7 +52,93 @@ export class RedeemService {
       throw new BadRequestException('Reward is not available');
     }
 
-    // Check per-user limits
+    // SPECIAL CASE: Monthly Rank Winners for fixed vouchers
+    if (rewardId === 'voucher-1000k' || rewardId === 'voucher-500k') {
+      const requiredRank = rewardId === 'voucher-1000k' ? 1 : 2;
+      
+      const winnerRecord = await this.prisma.monthlyPostRanking.findFirst({
+        where: { userId, rank: requiredRank },
+      });
+
+      if (winnerRecord) {
+        // Check if already redeemed as winner (pointsUsed = 0)
+        const alreadyRedeemedAsWinner = await this.prisma.redeemRequest.findFirst({
+          where: {
+            userId,
+            rewardId,
+            pointsUsed: 0,
+            status: { not: RedeemStatus.REJECTED },
+          },
+        });
+
+        if (!alreadyRedeemedAsWinner) {
+          // Allow redemption for 0 points
+          return await this.prisma.redeemRequest.create({
+            data: {
+              userId,
+              rewardId,
+              receiverPhone,
+              receiverEmail,
+              pointsUsed: 0,
+              status: RedeemStatus.PENDING,
+            },
+          });
+        }
+      }
+    }
+
+    // Logic for Monthly Rank rewards (legacy/dynamic rewards)
+    if (reward.rewardCategory === 'MONTHLY_RANK') {
+      return await this.prisma.$transaction(async (tx) => {
+        // 1. Check if user is the winner of this specific reward
+        const isWinner = await tx.monthlyPostRanking.findFirst({
+          where: {
+            userId,
+            month: reward.month,
+            rank: reward.rank,
+          },
+        });
+
+        if (!isWinner) {
+          throw new ForbiddenException(
+            'You are not eligible for this monthly rank reward',
+          );
+        }
+
+        // 2. Check if user has claimed ANY monthly rank reward before
+        // This check inside transaction prevents race conditions
+        const hasClaimedBefore = await tx.redeemRequest.findFirst({
+          where: {
+            userId,
+            reward: {
+              rewardCategory: 'MONTHLY_RANK',
+            },
+          },
+        });
+
+        if (hasClaimedBefore) {
+          throw new BadRequestException(
+            'You have already claimed a monthly rank reward. Each user can only claim once.',
+          );
+        }
+
+        // Create redeem request for monthly rank (0 points)
+        const redeemRequest = await tx.redeemRequest.create({
+          data: {
+            userId,
+            rewardId,
+            receiverPhone,
+            receiverEmail,
+            pointsUsed: 0,
+            status: RedeemStatus.PENDING,
+          },
+        });
+
+        return redeemRequest;
+      });
+    }
+
+    // Check per-user limits for point rewards
     if (reward.maxPerUser) {
       await this.checkUserRedeemLimits(userId, rewardId, reward.maxPerUser);
     }
