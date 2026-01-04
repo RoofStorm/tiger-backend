@@ -34,7 +34,9 @@ export class NotificationsController {
     @Query('isRead') isRead?: string,
   ) {
     const userId = req.user.id;
-    const isReadBool = isRead === 'true' ? true : isRead === 'false' ? false : undefined;
+    // Mặc định chỉ lấy những notification chưa đọc (isRead = false)
+    // Nếu có query parameter thì sử dụng giá trị đó, nếu không thì mặc định là false
+    const isReadBool = isRead === 'true' ? true : isRead === 'false' ? false : false;
     return this.notificationsService.getNotifications(userId, isReadBool);
   }
 
