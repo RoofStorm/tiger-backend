@@ -9,6 +9,7 @@ import { PostsService } from '../posts/posts.service';
 import { PointsService } from '../points/points.service';
 import { CreateActionDto } from './dto/create-action.dto';
 import { ActionType } from '@prisma/client';
+import { getVietnamTime } from '../../common/utils/date.utils';
 
 @Injectable()
 export class ActionsService {
@@ -88,7 +89,7 @@ export class ActionsService {
           },
           update: {
             // Update timestamp when sharing again
-            createdAt: new Date(),
+            createdAt: getVietnamTime(),
           },
           create: {
             userId,

@@ -9,6 +9,7 @@ import {
   WISH_LIMITS,
   SHARE_LIMITS,
 } from '../../constants/points';
+import { getWeekStartVietnam, getStartOfDayVietnam } from '../../common/utils/date.utils';
 
 @Injectable()
 export class UserLimitService {
@@ -17,21 +18,14 @@ export class UserLimitService {
     private pointsService: PointsService,
   ) {}
 
-  // Helper to get the start of the current week (Monday)
+  // Helper to get the start of the current week (Monday) in Vietnam timezone
   private getWeekStart(): Date {
-    const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-    const monday = new Date(now.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
-    return monday;
+    return getWeekStartVietnam();
   }
 
-  // Helper to get today's date (YYYY-MM-DD)
+  // Helper to get today's date (YYYY-MM-DD) in Vietnam timezone
   private getTodayDate(): Date {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
+    return getStartOfDayVietnam();
   }
 
   // Get period based on limit type

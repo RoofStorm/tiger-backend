@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getVietnamTime, getStartOfDayVietnam } from '../../common/utils/date.utils';
 
 @Injectable()
 export class AnalyticsAggregationService {
@@ -20,8 +21,8 @@ export class AnalyticsAggregationService {
     try {
       // Get the last aggregation time (or default to 1 hour ago)
       const lastAggregation = await this.getLastAggregationTime();
-      const startTime = lastAggregation || new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
-      const endTime = new Date();
+      const endTime = getVietnamTime();
+      const startTime = lastAggregation || new Date(endTime.getTime() - 60 * 60 * 1000); // 1 hour ago
 
       // Aggregate by page, zone, action, date, and hour
       const aggregates = await this.prisma.$queryRaw<
@@ -78,7 +79,7 @@ export class AnalyticsAggregationService {
             totalValue: agg.totalValue ? Number(agg.totalValue) : null,
             avgValue: agg.avgValue || null,
             uniqueSessions: Number(agg.uniqueSessions),
-            updatedAt: new Date(),
+            updatedAt: getVietnamTime(),
           },
           create: {
             page: agg.page,
@@ -111,12 +112,9 @@ export class AnalyticsAggregationService {
     this.logger.log('Starting daily analytics aggregation...');
 
     try {
-      const yesterday = new Date();
+      const today = getStartOfDayVietnam();
+      const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(0, 0, 0, 0);
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
 
       // Aggregate by page, zone, action, and date (without hour)
       const aggregates = await this.prisma.$queryRaw<
@@ -169,7 +167,7 @@ export class AnalyticsAggregationService {
             totalValue: agg.totalValue ? Number(agg.totalValue) : null,
             avgValue: agg.avgValue || null,
             uniqueSessions: Number(agg.uniqueSessions),
-            updatedAt: new Date(),
+            updatedAt: getVietnamTime(),
           },
           create: {
             page: agg.page,
@@ -202,7 +200,7 @@ export class AnalyticsAggregationService {
     this.logger.log('Starting cleanup of old analytics events...');
 
     try {
-      const cutoffDate = new Date();
+      const cutoffDate = getVietnamTime();
       cutoffDate.setDate(cutoffDate.getDate() - 90); // 90 days retention
 
       const result = await this.prisma.analyticsEvent.deleteMany({
