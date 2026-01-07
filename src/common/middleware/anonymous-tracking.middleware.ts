@@ -28,13 +28,16 @@ export class AnonymousTrackingMiddleware implements NestMiddleware {
       if (!anonymousId) {
         // Generate new UUID for anonymous user
         anonymousId = uuidv4();
+
+        const isProd = process.env.NODE_ENV === 'production';
         
         // Set cookie
         res.cookie(this.ANONYMOUS_COOKIE_NAME, anonymousId, {
           httpOnly: true,
-          sameSite: 'lax',
+          sameSite: 'none',
           maxAge: this.COOKIE_MAX_AGE,
-          secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+          domain: isProd ? '.tiger-corporation-vietnam.vn' : 'localhost',
+          secure: isProd,
         });
 
         this.logger.debug(`Generated new anonymous_id: ${anonymousId}`);
