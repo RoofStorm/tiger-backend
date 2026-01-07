@@ -59,6 +59,11 @@ export class AnalyticsService {
       metadata: event.metadata || null,
     }));
 
+    // Debug: Log first event to verify userId is set correctly
+    if (queuedEvents.length > 0) {
+      console.log(`[Analytics] First event: userId=${queuedEvents[0].userId}, isAnonymous=${queuedEvents[0].isAnonymous}, page=${queuedEvents[0].page}, action=${queuedEvents[0].action}`);
+    }
+
     // Enqueue events (non-blocking, returns immediately)
     this.queueService.enqueue(queuedEvents);
 

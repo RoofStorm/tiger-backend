@@ -49,7 +49,16 @@ export class AnalyticsController {
     @Request() req,
   ) {
     // Optional authentication - if user is logged in, record with userId
-    const userId = req.user?.id;
+    const user = (req as any).user;
+    const userId = user?.id;
+    
+    // Debug logging to help troubleshoot
+    if (userId) {
+      console.log(`[Analytics] Ingesting ${body.events.length} events for logged-in user: ${userId}`);
+    } else {
+      console.log(`[Analytics] Ingesting ${body.events.length} events for anonymous user (sessionId: ${body.sessionId})`);
+    }
+    
     return this.analyticsService.ingestEvents(
       body.events,
       body.sessionId,
