@@ -76,16 +76,26 @@ export class AnalyticsService {
   async getSummary(query: AnalyticsSummaryQueryDto) {
     const { page, zone, from, to } = query;
 
-    // Build where clause
+    // Validate: zone can only be used when page is provided
+    if (zone && !page) {
+      throw new BadRequestException(
+        'Zone filter can only be used when page filter is provided',
+      );
+    }
+
+    // Build where clause for non-user metrics (views, clicks, durations)
+    // These can be filtered by both page and zone
     const where: any = {};
     if (page) {
       where.page = page;
       if (zone) {
         where.zone = zone;
       } else {
+        // If page is provided but zone is not, only count page-level events (zone = null)
         where.zone = null;
       }
     }
+    // If no page is provided, where = {} means query all pages
 
     // Determine date range
     let startDate: Date;
@@ -114,10 +124,18 @@ export class AnalyticsService {
 
     const timeFilter = { gte: startDate, lte: endDate };
 
+    // Build where clause for user metrics (only filter by page, ignore zone)
+    // Users are counted at page level, not zone level
+    const userWhere: any = {};
+    if (page) {
+      userWhere.page = page;
+      // Don't filter by zone for user metrics - all zones in the page count
+    }
+
     // Get all stats in parallel from raw events table
     const [totalViews, clickStats, durationStats, uniqueSessionsResult, uniqueUsersResult] =
       await Promise.all([
-        // 1. Total Views
+        // 1. Total Views (can filter by zone if needed)
         this.prisma.analyticsEvent.count({
           where: {
             ...where,
@@ -125,7 +143,7 @@ export class AnalyticsService {
             createdAt: timeFilter,
           },
         }),
-        // 2. Total Clicks (click + start + submit)
+        // 2. Total Clicks (can filter by zone if needed)
         this.prisma.analyticsEvent.count({
           where: {
             ...where,
@@ -133,7 +151,7 @@ export class AnalyticsService {
             createdAt: timeFilter,
           },
         }),
-        // 3. Durations (Sum and Count)
+        // 3. Durations (can filter by zone if needed)
         this.prisma.analyticsEvent.aggregate({
           where: {
             ...where,
@@ -144,16 +162,17 @@ export class AnalyticsService {
           _sum: { value: true },
           _count: { _all: true },
         }),
-        // 4. Unique Sessions
+        // 4. Unique Sessions (page level only, ignore zone)
         this.prisma.analyticsEvent.groupBy({
           by: ['sessionId'],
-          where: { ...where, createdAt: timeFilter },
+          where: { ...userWhere, createdAt: timeFilter },
         }),
-        // 5. Unique Users (only logged in users, userId is not null)
+        // 5. Unique Users (page level only, ignore zone)
+        // Users are counted at page level - if they visited the page, they count regardless of zone
         this.prisma.analyticsEvent.groupBy({
           by: ['userId'],
           where: {
-            ...where,
+            ...userWhere,
             userId: { not: null },
             createdAt: timeFilter,
           },
@@ -163,19 +182,22 @@ export class AnalyticsService {
     const totalDurations = durationStats._sum.value || 0;
     const avgDuration = totalViews > 0 ? totalDurations / totalViews : 0;
 
-    // Get unique anonymous users from Redis (within time range)
+    // Get unique anonymous users from database (page level only, ignore zone)
+    // Query from analytics_events where isAnonymous = true and filter by page
     let uniqueAnonymousUsers = 0;
     try {
-      const startTimestamp = startDate.getTime();
-      const endTimestamp = endDate.getTime();
-      uniqueAnonymousUsers = await this.redisService.countInTimeRange(
-        'anonymous_users_timestamps',
-        startTimestamp,
-        endTimestamp,
-      );
+      const anonymousSessionsResult = await this.prisma.analyticsEvent.groupBy({
+        by: ['sessionId'],
+        where: {
+          ...userWhere, // Only filter by page, not zone
+          isAnonymous: true,
+          createdAt: timeFilter,
+        },
+      });
+      uniqueAnonymousUsers = anonymousSessionsResult.length;
     } catch (error) {
-      // If Redis fails, fallback to 0 (don't break the API)
-      console.error('Error getting unique anonymous users from Redis:', error);
+      // If query fails, fallback to 0 (don't break the API)
+      console.error('Error getting unique anonymous users from database:', error);
     }
 
     return {
