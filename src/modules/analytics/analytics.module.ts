@@ -6,9 +6,10 @@ import { AnalyticsAggregationService } from './analytics-aggregation.service';
 import { AnalyticsQueueService } from './analytics-queue.service';
 import { AnalyticsWorkerService } from './analytics-worker.service';
 import { RankingService } from './ranking.service';
+import { RedisModule } from '../../common/redis/redis.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot()],
+  imports: [ScheduleModule.forRoot(), RedisModule],
   providers: [
     AnalyticsService,
     AnalyticsAggregationService,

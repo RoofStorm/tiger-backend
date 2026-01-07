@@ -104,16 +104,18 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'User already exists' })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
+    const anonymousId = (req as any).anonymousId;
+    return this.authService.register(registerDto, anonymousId);
   }
 
   @Post('login')
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'User logged in successfully' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    const anonymousId = (req as any).anonymousId;
+    return this.authService.login(loginDto, anonymousId);
   }
 
   @Post('refresh')
@@ -310,11 +312,13 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
-  async facebookOAuthPost(@Body() oauthDto: OAuthDto) {
+  async facebookOAuthPost(@Body() oauthDto: OAuthDto, @Req() req: Request) {
     try {
+      const anonymousId = (req as any).anonymousId;
       const result = await this.authService.oauthLoginFromRequest(
         oauthDto,
         'facebook',
+        anonymousId,
       );
 
       return {
@@ -361,11 +365,13 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
-  async googleOAuthPost(@Body() oauthDto: OAuthDto) {
+  async googleOAuthPost(@Body() oauthDto: OAuthDto, @Req() req: Request) {
     try {
+      const anonymousId = (req as any).anonymousId;
       const result = await this.authService.oauthLoginFromRequest(
         oauthDto,
         'google',
+        anonymousId,
       );
 
       return {

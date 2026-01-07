@@ -7,12 +7,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAnalyticsEventDto } from './dto/create-analytics-event.dto';
 import { AnalyticsSummaryQueryDto } from './dto/analytics-summary.dto';
 import { AnalyticsQueueService } from './analytics-queue.service';
+import { RedisService } from '../../common/redis/redis.service';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
     private prisma: PrismaService,
     private queueService: AnalyticsQueueService,
+    private redisService: RedisService,
   ) {}
 
   /**
@@ -113,7 +115,7 @@ export class AnalyticsService {
     const timeFilter = { gte: startDate, lte: endDate };
 
     // Get all stats in parallel from raw events table
-    const [totalViews, clickStats, durationStats, uniqueSessionsResult] =
+    const [totalViews, clickStats, durationStats, uniqueSessionsResult, uniqueUsersResult] =
       await Promise.all([
         // 1. Total Views
         this.prisma.analyticsEvent.count({
@@ -147,10 +149,34 @@ export class AnalyticsService {
           by: ['sessionId'],
           where: { ...where, createdAt: timeFilter },
         }),
+        // 5. Unique Users (only logged in users, userId is not null)
+        this.prisma.analyticsEvent.groupBy({
+          by: ['userId'],
+          where: {
+            ...where,
+            userId: { not: null },
+            createdAt: timeFilter,
+          },
+        }),
       ]);
 
     const totalDurations = durationStats._sum.value || 0;
     const avgDuration = totalViews > 0 ? totalDurations / totalViews : 0;
+
+    // Get unique anonymous users from Redis (within time range)
+    let uniqueAnonymousUsers = 0;
+    try {
+      const startTimestamp = startDate.getTime();
+      const endTimestamp = endDate.getTime();
+      uniqueAnonymousUsers = await this.redisService.countInTimeRange(
+        'anonymous_users_timestamps',
+        startTimestamp,
+        endTimestamp,
+      );
+    } catch (error) {
+      // If Redis fails, fallback to 0 (don't break the API)
+      console.error('Error getting unique anonymous users from Redis:', error);
+    }
 
     return {
       page: page || 'all',
@@ -164,6 +190,8 @@ export class AnalyticsService {
       totalDurations: Math.round(totalDurations * 100) / 100,
       avgDuration: Math.round(avgDuration * 100) / 100,
       uniqueSessions: uniqueSessionsResult.length,
+      uniqueUsers: uniqueUsersResult.length,
+      uniqueAnonymousUsers,
     };
   }
 

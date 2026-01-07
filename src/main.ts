@@ -16,6 +16,7 @@ import { AppModule } from './app.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import helmet from 'helmet';
 import * as compression from 'compression';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,6 +24,9 @@ async function bootstrap() {
   // Security middleware
   app.use(helmet());
   app.use(compression());
+  
+  // Cookie parser for anonymous tracking
+  app.use(cookieParser());
 
   // CORS - Allow all origins for development
   app.enableCors({

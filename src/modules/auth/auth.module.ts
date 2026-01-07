@@ -13,12 +13,15 @@ import { PointsModule } from '../points/points.module';
 import { ReferralModule } from '../referral/referral.module';
 import { NextAuthMiddleware } from './nextauth.middleware';
 import { OptionalNextAuthGuard } from './guards/optional-nextauth.guard';
+import { RedisModule } from '../../common/redis/redis.module';
+import { AnonymousConversionService } from '../../common/services/anonymous-conversion.service';
 
 @Module({
   imports: [
     UsersModule,
     PointsModule,
     ReferralModule,
+    RedisModule,
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
@@ -38,6 +41,7 @@ import { OptionalNextAuthGuard } from './guards/optional-nextauth.guard';
     FacebookStrategy,
     NextAuthMiddleware,
     OptionalNextAuthGuard,
+    AnonymousConversionService,
   ],
   controllers: [AuthController],
   exports: [AuthService, NextAuthMiddleware, OptionalNextAuthGuard],

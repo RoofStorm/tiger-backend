@@ -11,6 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { PointsService } from '../points/points.service';
 import { ReferralService } from '../referral/referral.service';
+import { AnonymousConversionService } from '../../common/services/anonymous-conversion.service';
 import { LoginDto, RegisterDto, RefreshTokenDto, ChangePasswordDto } from './dto/auth.dto';
 import { LoginMethod, UserStatus } from '@prisma/client';
 import { POINTS } from '../../constants/points';
@@ -24,9 +25,10 @@ export class AuthService {
     private referralService: ReferralService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private anonymousConversionService: AnonymousConversionService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto, anonymousId?: string) {
     const { username, password, email, name, referralCode } = registerDto;
 
     // Validate: must have either username or email
@@ -127,7 +129,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, anonymousId?: string) {
     const { username, password } = loginDto;
 
     // Try to find user by username first
@@ -190,6 +192,14 @@ export class AuthService {
           error,
         );
       }
+    }
+
+    // Track anonymous to logged-in conversion if anonymousId exists
+    if (anonymousId) {
+      await this.anonymousConversionService.trackConversion(
+        anonymousId,
+        user.id,
+      );
     }
 
     // Reload user to get updated points value
@@ -273,6 +283,7 @@ export class AuthService {
       avatarUrl?: string;
     },
     provider: 'google' | 'facebook',
+    anonymousId?: string,
   ) {
     const { providerId, email, name, avatarUrl } = oauthDto;
     let pointsAwarded = false;
@@ -409,6 +420,14 @@ export class AuthService {
       });
       console.log(
         `✅ Generated referral code for new ${provider} user: ${newUserReferralCode}`,
+      );
+    }
+
+    // Track anonymous to logged-in conversion if anonymousId exists
+    if (anonymousId) {
+      await this.anonymousConversionService.trackConversion(
+        anonymousId,
+        user.id,
       );
     }
 

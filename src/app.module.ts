@@ -17,7 +17,9 @@ import { AdminModule } from './modules/admin/admin.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { GuardsModule } from './common/guards/guards.module';
+import { RedisModule } from './common/redis/redis.module';
 import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
+import { AnonymousTrackingMiddleware } from './common/middleware/anonymous-tracking.middleware';
 
 @Module({
   imports: [
@@ -57,10 +59,19 @@ import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
     ReferralModule,
     NotificationsModule,
     GuardsModule,
+    RedisModule,
   ],
+  providers: [AnonymousTrackingMiddleware],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(NextAuthMiddleware).forRoutes('*'); // Apply to all routes
+    // Apply anonymous tracking first (before auth)
+    consumer
+      .apply(AnonymousTrackingMiddleware)
+      .forRoutes('*');
+    // Then apply auth middleware
+    consumer
+      .apply(NextAuthMiddleware)
+      .forRoutes('*');
   }
 }

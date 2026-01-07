@@ -69,5 +69,11 @@ export class AnalyticsSummaryResponseDto {
 
   @ApiProperty({ example: 150, description: 'Unique sessions' })
   uniqueSessions: number;
+
+  @ApiProperty({ example: 120, description: 'Unique users (logged in users only)' })
+  uniqueUsers: number;
+
+  @ApiProperty({ example: 350, description: 'Unique anonymous users' })
+  uniqueAnonymousUsers: number;
 }
 
