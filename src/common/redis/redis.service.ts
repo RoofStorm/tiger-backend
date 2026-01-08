@@ -82,6 +82,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Remove members from sorted set by score range
+   * Useful for cleanup old data based on timestamp scores
+   * @param key Sorted set key
+   * @param minScore Minimum score (inclusive)
+   * @param maxScore Maximum score (inclusive)
+   * @returns Number of members removed
+   */
+  async removeFromSortedSetByScore(
+    key: string,
+    minScore: number,
+    maxScore: number,
+  ): Promise<number> {
+    return await this.redis.zremrangebyscore(key, minScore, maxScore);
+  }
+
+  /**
    * Get Redis client (for advanced operations)
    */
   getClient(): Redis {

@@ -1,6 +1,7 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -20,6 +21,7 @@ import { GuardsModule } from './common/guards/guards.module';
 import { RedisModule } from './common/redis/redis.module';
 import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
 import { AnonymousTrackingMiddleware } from './common/middleware/anonymous-tracking.middleware';
+import { AnonymousTrackingCleanupService } from './common/services/anonymous-tracking-cleanup.service';
 
 @Module({
   imports: [
@@ -43,6 +45,7 @@ import { AnonymousTrackingMiddleware } from './common/middleware/anonymous-track
         limit: parseInt(process.env.THROTTLE_LIMIT) || 100,
       },
     ]),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -61,7 +64,10 @@ import { AnonymousTrackingMiddleware } from './common/middleware/anonymous-track
     GuardsModule,
     RedisModule,
   ],
-  providers: [AnonymousTrackingMiddleware],
+  providers: [
+    AnonymousTrackingMiddleware,
+    AnonymousTrackingCleanupService,
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

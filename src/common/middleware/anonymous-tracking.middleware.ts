@@ -32,6 +32,8 @@ export class AnonymousTrackingMiddleware implements NestMiddleware {
         const isProd = process.env.NODE_ENV === 'production';
         
         // Set cookie
+        // ⚠️ CRITICAL: When sameSite = 'none', secure MUST be true (required by browser)
+        // Chrome/Safari will automatically drop cookie if secure = false with sameSite = 'none'
         res.cookie(this.ANONYMOUS_COOKIE_NAME, anonymousId, {
           httpOnly: true,
           sameSite: 'none',

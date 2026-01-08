@@ -28,9 +28,11 @@ async function bootstrap() {
   // Cookie parser for anonymous tracking
   app.use(cookieParser());
 
-  // CORS - Allow all origins for development
+  // CORS - Must specify exact origin when credentials = true
+  const corsOrigins = process.env.CORS_ORIGIN || 'http://localhost:3000';
+
   app.enableCors({
-    origin: true, // Allow all origins
+    origin: corsOrigins, // 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
     allowedHeaders: [
       'Origin',
@@ -47,7 +49,7 @@ async function bootstrap() {
       'Accept-Ranges',
       'Content-Type',
     ],
-    credentials: false, // Set to false when using wildcard origin
+    credentials: true, // REQUIRED: Must be true to allow cookies with credentials
   });
 
   // Global validation pipe

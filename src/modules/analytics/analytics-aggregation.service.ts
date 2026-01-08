@@ -192,31 +192,35 @@ export class AnalyticsAggregationService {
   }
 
   /**
-   * Cleanup old raw events (runs daily at 2 AM)
+   * Cleanup old raw events (DISABLED - Short-term project, no cleanup needed)
    * Deletes events older than 90 days to manage storage
+   * 
+   * NOTE: Disabled for short-term project (3-4 months duration)
+   * If needed in the future, uncomment @Cron decorator below
    */
-  @Cron('0 2 * * *') // Daily at 2 AM
+  // @Cron('0 2 * * *') // Daily at 2 AM - DISABLED
   async cleanupOldEvents() {
-    this.logger.log('Starting cleanup of old analytics events...');
+    // Database cleanup disabled for short-term project
+    // All analytics data will be kept in database
+    this.logger.log('Database cleanup is disabled for short-term project (3-4 months)');
+    return;
 
-    try {
-      const cutoffDate = getVietnamTime();
-      cutoffDate.setDate(cutoffDate.getDate() - 90); // 90 days retention
-
-      const result = await this.prisma.analyticsEvent.deleteMany({
-        where: {
-          createdAt: {
-            lt: cutoffDate,
-          },
-        },
-      });
-
-      this.logger.log(
-        `Cleanup completed: ${result.count} old events deleted`,
-      );
-    } catch (error) {
-      this.logger.error('Error during cleanup:', error);
-    }
+    // Original cleanup code (kept for future reference):
+    // this.logger.log('Starting cleanup of old analytics events...');
+    // try {
+    //   const cutoffDate = getVietnamTime();
+    //   cutoffDate.setDate(cutoffDate.getDate() - 90); // 90 days retention
+    //   const result = await this.prisma.analyticsEvent.deleteMany({
+    //     where: {
+    //       createdAt: {
+    //         lt: cutoffDate,
+    //       },
+    //     },
+    //   });
+    //   this.logger.log(`Cleanup completed: ${result.count} old events deleted`);
+    // } catch (error) {
+    //   this.logger.error('Error during cleanup:', error);
+    // }
   }
 
   /**
