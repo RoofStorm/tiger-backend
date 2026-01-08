@@ -8,34 +8,34 @@ datasource db {
 }
 
 model User {
-  id             String            @id @default(uuid())
-  name           String?
-  email          String            @unique
-  username       String?           @unique
-  passwordHash   String?
-  avatarUrl      String?
-  loginMethod    LoginMethod       @default(LOCAL)
-  providerId     String?
-  refreshToken   String?
-  role           Role              @default(USER)
-  status         UserStatus        @default(ACTIVE)
-  points         Int               @default(0)
-  referralCode   String?           @unique
-  referredBy     String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id              String               @id @default(uuid())
+  name            String?
+  email           String               @unique
+  username        String?              @unique
+  passwordHash    String?
+  avatarUrl       String?
+  loginMethod     LoginMethod          @default(LOCAL)
+  providerId      String?
+  refreshToken    String?
+  role            Role                 @default(USER)
+  status          UserStatus           @default(ACTIVE)
+  points          Int                  @default(0)
+  referralCode    String?              @unique
+  referredBy      String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
   analyticsEvents AnalyticsEvent[]
-  pointLogs       PointLog[]
-  posts          Post[]
-  redeemLogs     RedeemLog[]
-  redeemRequests RedeemRequest[]
   monthlyRankings MonthlyPostRanking[]
-  userLimits     UserLimit[]
-  userActions    UserPostAction[]
-  referrer       User?             @relation("UserReferrals", fields: [referredBy], references: [id])
-  referrals      User[]            @relation("UserReferrals")
-  wishes         Wish[]
-  notifications  Notification[]
+  notifications   Notification[]
+  pointLogs       PointLog[]
+  posts           Post[]
+  redeemLogs      RedeemLog[]
+  redeemRequests  RedeemRequest[]
+  userLimits      UserLimit[]
+  userActions     UserPostAction[]
+  referrer        User?                @relation("UserReferrals", fields: [referredBy], references: [id])
+  referrals       User[]               @relation("UserReferrals")
+  wishes          Wish[]
 
   @@map("users")
 }
@@ -49,32 +49,27 @@ model Notification {
   metadata  Json?
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
-
-  user User @relation(fields: [userId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
   @@map("notifications")
 }
 
-enum NotificationType {
-  MONTHLY_RANK_WIN
-}
-
 model Post {
-  id            String           @id @default(uuid())
-  userId        String
-  type          PostType
-  caption       String?
-  url           String?
-  likeCount     Int              @default(0)
-  shareCount    Int              @default(0)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  isHighlighted Boolean          @default(false)
-  commentCount  Int              @default(0)
-  user          User             @relation(fields: [userId], references: [id])
-  actions       UserPostAction[]
+  id              String               @id @default(uuid())
+  userId          String
+  type            PostType
+  caption         String?
+  url             String?
+  likeCount       Int                  @default(0)
+  shareCount      Int                  @default(0)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  isHighlighted   Boolean              @default(false)
+  commentCount    Int                  @default(0)
   monthlyRankings MonthlyPostRanking[]
+  user            User                 @relation(fields: [userId], references: [id])
+  actions         UserPostAction[]
 
   @@map("posts")
 }
@@ -135,18 +130,18 @@ model RedeemLog {
 }
 
 model AnalyticsEvent {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   userId      String?
   sessionId   String
-  isAnonymous Boolean   @default(false)
+  isAnonymous Boolean  @default(false)
   page        String
   zone        String?
   component   String?
   action      String
   value       Int?
   metadata    Json?
-  createdAt   DateTime  @default(now())
-  user        User?     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id])
 
   @@index([page, zone, action])
   @@index([sessionId])
@@ -155,18 +150,20 @@ model AnalyticsEvent {
 }
 
 model AnalyticsAggregate {
-  id          String   @id @default(uuid())
-  page        String
-  zone        String?
-  action    String
-  date        DateTime @db.Date
-  hour        Int      @default(-1) // -1 for daily aggregates, 0-23 for hourly
-  totalEvents Int      @default(0)
-  totalValue  Int?
-  avgValue    Float?
-  uniqueSessions Int   @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  page                 String
+  zone                 String?
+  action               String
+  date                 DateTime @db.Date
+  hour                 Int      @default(-1)
+  totalEvents          Int      @default(0)
+  totalValue           Int?
+  avgValue             Float?
+  uniqueSessions       Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  uniqueUsers          Int      @default(0)
+  uniqueAnonymousUsers Int      @default(0)
 
   @@unique([page, zone, action, date, hour])
   @@index([page, zone, date])
@@ -185,13 +182,11 @@ model Reward {
   maxPerUser     Int?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  redeemRequests RedeemRequest[]
-
-  // New fields for Monthly Rank
   rewardType     RewardType      @default(POINT_REDEEM)
   rewardCategory RewardCategory  @default(POINT)
-  rank           Int?            // 1 | 2
-  month          DateTime?       // 2024-01-01
+  rank           Int?
+  month          DateTime?
+  redeemRequests RedeemRequest[]
 
   @@map("rewards")
 }
@@ -199,14 +194,13 @@ model Reward {
 model MonthlyPostRanking {
   id        String   @id @default(uuid())
   month     DateTime
-  rank      Int      // 1, 2
+  rank      Int
   userId    String
   postId    String
   likeCount Int
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-  post Post @relation(fields: [postId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([month, rank])
   @@map("monthly_post_rankings")
@@ -221,7 +215,7 @@ model Wish {
   updatedAt     DateTime @updatedAt
   user          User     @relation(fields: [userId], references: [id])
 
-  @@index([isHighlighted, createdAt(sort: Desc), id(sort: Desc)], name: "idx_wishes_highlighted_created_id")
+  @@index([isHighlighted, createdAt(sort: Desc), id(sort: Desc)], map: "idx_wishes_highlighted_created_id")
   @@map("wishes")
 }
 
@@ -231,7 +225,7 @@ model RedeemRequest {
   rewardId        String
   receiverName    String?
   receiverPhone   String
-  receiverEmail   String      @map("receiver_email")
+  receiverEmail   String       @map("receiver_email")
   receiverAddress String?
   status          RedeemStatus @default(PENDING)
   pointsUsed      Int
@@ -242,6 +236,10 @@ model RedeemRequest {
   user            User         @relation(fields: [userId], references: [id])
 
   @@map("redeem_requests")
+}
+
+enum NotificationType {
+  MONTHLY_RANK_WIN
 }
 
 enum RewardType {
