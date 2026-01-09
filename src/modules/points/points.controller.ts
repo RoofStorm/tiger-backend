@@ -16,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { PointsService } from './points.service';
 import { GrantPointsDto } from './dto/grant-points.dto';
+import { ProductCardClickDto } from './dto/product-card-click.dto';
 import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 
 @ApiTags('Points')
@@ -55,5 +56,35 @@ export class PointsController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async grantPoints(@Body() grantPointsDto: GrantPointsDto, @Request() req) {
     return this.pointsService.grantPoints(grantPointsDto, req.user.id);
+  }
+
+  @Post('product-card-click')
+  @ApiOperation({
+    summary: 'Process product card clicks and award points',
+    description:
+      'Awards 10 points per click, maximum 8 clicks per user (lifetime). Accepts batch clicks.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product card clicks processed successfully',
+    schema: {
+      example: {
+        awardedClicks: 5,
+        totalPoints: 50,
+        remainingClicks: 3,
+        currentTotalClicks: 5,
+        maxClicks: 8,
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async processProductCardClicks(
+    @Body() productCardClickDto: ProductCardClickDto,
+    @Request() req,
+  ) {
+    return this.pointsService.processProductCardClicks(
+      req.user.id,
+      productCardClickDto.clickCount,
+    );
   }
 }

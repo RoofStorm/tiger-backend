@@ -256,6 +256,7 @@ enum LimitType {
   POST_WEEKLY
   WISH_WEEKLY
   SHARE_WEEKLY
+  PRODUCT_CARD_CLICK
 }
 
 enum LoginMethod {

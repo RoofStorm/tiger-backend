@@ -4,6 +4,7 @@ export const POINTS = {
   POST_CREATION: 100, // 100 points for first post per week
   WISH_CREATION: 100, // 100 points for first wish per week
   FACEBOOK_SHARE: 50, // 50 points for sharing post or wish to Facebook (once per week)
+  PRODUCT_CARD_CLICK: 10, // 10 points per product card click (max 8 times lifetime)
   // POST_LIKE: 5, // Disabled - no points for likes
   // POST_COMMENT: 3, // Disabled - no points for comments
 } as const;
@@ -26,4 +27,9 @@ export const WISH_LIMITS = {
 export const SHARE_LIMITS = {
   WEEKLY_SHARE_POINTS_LIMIT: 1, // Maximum 1 Facebook share bonus per week (resets every Monday)
   WEEKLY_SHARE_POINTS: 50, // Points for sharing post or wish to Facebook (50 points once per week)
+} as const;
+
+export const PRODUCT_CARD_LIMITS = {
+  LIFETIME_CLICK_LIMIT: 8, // Maximum 8 product card clicks per user (lifetime)
+  POINTS_PER_CLICK: 10, // Points per product card click
 } as const;

@@ -1,7 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GrantPointsDto } from './dto/grant-points.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, LimitType } from '@prisma/client';
+import { POINTS, PRODUCT_CARD_LIMITS } from '../../constants/points';
 
 @Injectable()
 export class PointsService {
@@ -233,5 +234,114 @@ export class PointsService {
     });
 
     return Math.abs(result._sum.points || 0);
+  }
+
+  /**
+   * Process product card clicks and award points
+   * @param userId User ID
+   * @param clickCount Number of clicks to process
+   * @returns Result with awarded clicks, points, and remaining clicks
+   */
+  async processProductCardClicks(
+    userId: string,
+    clickCount: number,
+  ): Promise<{
+    awardedClicks: number;
+    totalPoints: number;
+    remainingClicks: number;
+    currentTotalClicks: number;
+    maxClicks: number;
+  }> {
+    const LIFETIME_PERIOD = new Date('1970-01-01T00:00:00.000Z');
+    const MAX_CLICKS = PRODUCT_CARD_LIMITS.LIFETIME_CLICK_LIMIT;
+    const POINTS_PER_CLICK = POINTS.PRODUCT_CARD_CLICK;
+    const REASON = 'Product card click';
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Get current click count
+      const currentLimit = await tx.userLimit.findUnique({
+        where: {
+          userId_limitType_period: {
+            userId,
+            limitType: LimitType.PRODUCT_CARD_CLICK,
+            period: LIFETIME_PERIOD,
+          },
+        },
+      });
+
+      const currentClicks = currentLimit?.count || 0;
+      const remainingClicks = Math.max(0, MAX_CLICKS - currentClicks);
+
+      // Calculate how many clicks can be awarded
+      const awardedClicks = Math.min(clickCount, remainingClicks);
+
+      if (awardedClicks === 0) {
+        return {
+          awardedClicks: 0,
+          totalPoints: 0,
+          remainingClicks: 0,
+          currentTotalClicks: currentClicks,
+          maxClicks: MAX_CLICKS,
+        };
+      }
+
+      const totalPoints = awardedClicks * POINTS_PER_CLICK;
+
+      // Create point logs for each click
+      const pointLogs = [];
+      for (let i = 0; i < awardedClicks; i++) {
+        const pointLog = await tx.pointLog.create({
+          data: {
+            userId,
+            points: POINTS_PER_CLICK,
+            reason: REASON,
+          },
+        });
+        pointLogs.push(pointLog);
+      }
+
+      // Update user points
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          points: {
+            increment: totalPoints,
+          },
+        },
+      });
+
+      // Update or create user limit
+      await tx.userLimit.upsert({
+        where: {
+          userId_limitType_period: {
+            userId,
+            limitType: LimitType.PRODUCT_CARD_CLICK,
+            period: LIFETIME_PERIOD,
+          },
+        },
+        update: {
+          count: {
+            increment: awardedClicks,
+          },
+        },
+        create: {
+          userId,
+          limitType: LimitType.PRODUCT_CARD_CLICK,
+          period: LIFETIME_PERIOD,
+          count: awardedClicks,
+        },
+      });
+
+      const newCurrentClicks = currentClicks + awardedClicks;
+      const newRemainingClicks = Math.max(0, MAX_CLICKS - newCurrentClicks);
+
+      return {
+        awardedClicks,
+        totalPoints,
+        remainingClicks: newRemainingClicks,
+        currentTotalClicks: newCurrentClicks,
+        maxClicks: MAX_CLICKS,
+      };
+    });
   }
 }

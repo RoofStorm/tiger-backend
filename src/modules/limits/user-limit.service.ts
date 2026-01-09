@@ -8,6 +8,7 @@ import {
   POST_LIMITS,
   WISH_LIMITS,
   SHARE_LIMITS,
+  PRODUCT_CARD_LIMITS,
 } from '../../constants/points';
 import { getWeekStartVietnam, getStartOfDayVietnam } from '../../common/utils/date.utils';
 
@@ -35,6 +36,9 @@ export class UserLimitService {
       case LimitType.WISH_WEEKLY:
       case LimitType.SHARE_WEEKLY:
         return this.getWeekStart();
+      case LimitType.PRODUCT_CARD_CLICK:
+        // Use a fixed date (1970-01-01) to represent lifetime limit
+        return new Date('1970-01-01T00:00:00.000Z');
       default:
         throw new Error(`Unknown limit type: ${limitType}`);
     }
@@ -71,6 +75,9 @@ export class UserLimitService {
       case LimitType.SHARE_WEEKLY:
         maxCount = SHARE_LIMITS.WEEKLY_SHARE_POINTS_LIMIT;
         break;
+      case LimitType.PRODUCT_CARD_CLICK:
+        maxCount = PRODUCT_CARD_LIMITS.LIFETIME_CLICK_LIMIT;
+        break;
       default:
         throw new Error(`Unknown limit type: ${limitType}`);
     }
@@ -106,6 +113,9 @@ export class UserLimitService {
           break;
         case LimitType.SHARE_WEEKLY:
           points = POINTS.FACEBOOK_SHARE;
+          break;
+        case LimitType.PRODUCT_CARD_CLICK:
+          points = POINTS.PRODUCT_CARD_CLICK;
           break;
         default:
           throw new Error(`Unknown limit type: ${limitType}`);
@@ -196,6 +206,10 @@ export class UserLimitService {
       case LimitType.SHARE_WEEKLY:
         maxCount = SHARE_LIMITS.WEEKLY_SHARE_POINTS_LIMIT;
         pointsPerAction = POINTS.FACEBOOK_SHARE;
+        break;
+      case LimitType.PRODUCT_CARD_CLICK:
+        maxCount = PRODUCT_CARD_LIMITS.LIFETIME_CLICK_LIMIT;
+        pointsPerAction = POINTS.PRODUCT_CARD_CLICK;
         break;
       default:
         throw new Error(`Unknown limit type: ${limitType}`);
