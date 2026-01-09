@@ -7,7 +7,6 @@ import {
   Query,
   UseGuards,
   Request,
-  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -70,18 +69,11 @@ export class MoodCardsController {
   })
   @ApiResponse({ status: 201, description: 'Mood card shared successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Mood card not found' })
   async shareMoodCard(
     @Param('id') id: string,
     @Body() body: { platform?: string },
     @Request() req,
   ) {
-    // Check if mood card exists
-    const moodCard = await this.moodCardsService.getMoodCardById(id);
-    if (!moodCard) {
-      throw new NotFoundException('Mood card not found');
-    }
-
     // Award points for sharing to Facebook (first share per week)
     const pointsAwarded = await this.shareService.awardShareBonus(
       req.user.id,
