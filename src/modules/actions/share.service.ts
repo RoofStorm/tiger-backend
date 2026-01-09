@@ -16,14 +16,14 @@ export class ShareService {
     return this.userLimitService.canReceiveBonus(userId, LimitType.SHARE_WEEKLY);
   }
 
-  // Award points for sharing a post or wish to Facebook (first share per week)
+  // Award points for sharing a post, wish, or mood card to Facebook (first share per week)
   // Chỉ cộng điểm nếu:
   // 1. Share lên Facebook (platform === 'facebook')
-  // 2. Chưa đạt weekly limit (cả post và wish dùng chung limit - chỉ cộng 1 lần/tuần)
+  // 2. Chưa đạt weekly limit (cả post, wish và mood-card dùng chung limit - chỉ cộng 1 lần/tuần)
   async awardShareBonus(
     userId: string,
     contentId: string,
-    contentType: 'post' | 'wish',
+    contentType: 'post' | 'wish' | 'mood-card',
     platform?: string,
   ): Promise<boolean> {
     // Chỉ cộng điểm khi share lên Facebook
@@ -34,13 +34,15 @@ export class ShareService {
       return false;
     }
 
-    // Cả post và wish đều dùng cùng SHARE_WEEKLY limit type
-    // Nên dù share post hay wish, chỉ được cộng 50 điểm 1 lần/tuần
-    const reason = 'Facebook share bonus'; // Dùng chung reason cho cả post và wish
+    // Cả post, wish và mood-card đều dùng cùng SHARE_WEEKLY limit type
+    // Nên dù share post, wish hay mood-card, chỉ được cộng 50 điểm 1 lần/tuần
+    const reason = 'Facebook share bonus'; // Dùng chung reason cho cả post, wish và mood-card
     const note =
       contentType === 'post'
         ? `Shared post to Facebook: ${contentId}`
-        : `Shared wish to Facebook: ${contentId}`;
+        : contentType === 'wish'
+          ? `Shared wish to Facebook: ${contentId}`
+          : `Shared mood card to Facebook: ${contentId}`;
 
     return this.userLimitService.awardBonus(
       userId,

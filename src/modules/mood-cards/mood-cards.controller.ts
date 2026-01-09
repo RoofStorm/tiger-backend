@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   Request,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,13 +17,18 @@ import {
 } from '@nestjs/swagger';
 import { MoodCardsService } from './mood-cards.service';
 import { NextAuthGuard } from '../auth/guards/nextauth.guard';
+import { ShareService } from '../actions/share.service';
+import { SHARE_LIMITS } from '../../constants/points';
 
 @ApiTags('Mood Cards')
 @Controller('api/mood-cards')
 @UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class MoodCardsController {
-  constructor(private readonly moodCardsService: MoodCardsService) {}
+  constructor(
+    private readonly moodCardsService: MoodCardsService,
+    private readonly shareService: ShareService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all mood cards' })
@@ -59,14 +65,39 @@ export class MoodCardsController {
   @Post(':id/share')
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Share a mood card' })
+  @ApiOperation({
+    summary: 'Share a mood card. Share to Facebook to earn 50 points once per week.',
+  })
   @ApiResponse({ status: 201, description: 'Mood card shared successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Mood card not found' })
   async shareMoodCard(
     @Param('id') id: string,
-    @Body() shareData: any,
+    @Body() body: { platform?: string },
     @Request() req,
   ) {
-    return this.moodCardsService.shareMoodCard(id, shareData, req.user.id);
+    // Check if mood card exists
+    const moodCard = await this.moodCardsService.getMoodCardById(id);
+    if (!moodCard) {
+      throw new NotFoundException('Mood card not found');
+    }
+
+    // Award points for sharing to Facebook (first share per week)
+    const pointsAwarded = await this.shareService.awardShareBonus(
+      req.user.id,
+      id,
+      'mood-card',
+      body?.platform,
+    );
+
+    return {
+      success: true,
+      pointsAwarded,
+      pointsMessage: pointsAwarded
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
+        : body?.platform === 'facebook'
+          ? 'Mood card đã được chia sẻ thành công.'
+          : 'Mood card đã được chia sẻ thành công. Hãy chia sẻ lên Facebook để nhận điểm.',
+    };
   }
 }
