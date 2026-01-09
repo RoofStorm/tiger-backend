@@ -13,3 +13,4 @@ ON "analytics_aggregate"("page", "zone", "action", "date", "hour");
 -- If you need to revert zone back to NULL, you can run:
 -- UPDATE "analytics_aggregate" SET "zone" = NULL WHERE "zone" = '';
 
+
