@@ -65,7 +65,7 @@ export class MoodCardsController {
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Share a mood card. Share to Facebook to earn 50 points once per week.',
+    summary: 'Share a mood card. Share to Facebook to earn 50 points once lifetime.',
   })
   @ApiResponse({ status: 201, description: 'Mood card shared successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -74,7 +74,7 @@ export class MoodCardsController {
     @Body() body: { platform?: string },
     @Request() req,
   ) {
-    // Award points for sharing to Facebook (first share per week)
+    // Award points for sharing to Facebook (first share lifetime)
     const pointsAwarded = await this.shareService.awardShareBonus(
       req.user.id,
       id,
@@ -86,7 +86,7 @@ export class MoodCardsController {
       success: true,
       pointsAwarded,
       pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.LIFETIME_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
         : body?.platform === 'facebook'
           ? 'Mood card đã được chia sẻ thành công.'
           : 'Mood card đã được chia sẻ thành công. Hãy chia sẻ lên Facebook để nhận điểm.',

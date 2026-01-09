@@ -151,7 +151,7 @@ export class WishesController {
   @UseGuards(NextAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Share a wish. Share to Facebook to earn 50 points once per week.',
+    summary: 'Share a wish. Share to Facebook to earn 50 points once lifetime.',
   })
   @ApiResponse({
     status: 201,
@@ -169,7 +169,7 @@ export class WishesController {
       throw new NotFoundException('Wish not found');
     }
 
-    // Award points for sharing to Facebook (first share per week)
+    // Award points for sharing to Facebook (first share lifetime)
     const pointsAwarded = await this.shareService.awardShareBonus(
       req.user.id,
       wishId,
@@ -181,7 +181,7 @@ export class WishesController {
       success: true,
       pointsAwarded,
       pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.LIFETIME_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
         : body?.platform === 'facebook'
           ? 'Lời chúc đã được chia sẻ thành công.'
           : 'Lời chúc đã được chia sẻ thành công. Hãy chia sẻ lên Facebook để nhận điểm.',

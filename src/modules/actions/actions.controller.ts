@@ -46,7 +46,7 @@ export class ActionsController {
 
   @Post(':id/share')
   @ApiOperation({
-    summary: 'Share a post (can share multiple times). Share to Facebook to earn 50 points once per week.',
+    summary: 'Share a post (can share multiple times). Share to Facebook to earn 50 points once lifetime.',
   })
   @ApiResponse({ status: 201, description: 'Post shared successfully' })
   @ApiResponse({ status: 404, description: 'Post not found' })
@@ -60,7 +60,7 @@ export class ActionsController {
       req.user.id,
     );
 
-    // Award points for sharing to Facebook (first share per week)
+    // Award points for sharing to Facebook (first share lifetime)
     const pointsAwarded = await this.shareService.awardShareBonus(
       req.user.id,
       postId,
@@ -72,7 +72,7 @@ export class ActionsController {
       ...result,
       pointsAwarded,
       pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.WEEKLY_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
+        ? `Chúc mừng! Bạn đã nhận được ${SHARE_LIMITS.LIFETIME_SHARE_POINTS} điểm cho việc chia sẻ lên Facebook.`
         : body?.platform === 'facebook'
           ? 'Bài viết đã được chia sẻ thành công. Bạn đã nhận điểm cho việc chia sẻ lên Facebook.'
           : 'Bài viết đã được chia sẻ thành công. Hãy chia sẻ lên Facebook để nhận điểm.',

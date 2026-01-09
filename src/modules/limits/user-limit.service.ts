@@ -34,8 +34,8 @@ export class UserLimitService {
     switch (limitType) {
       case LimitType.POST_WEEKLY:
       case LimitType.WISH_WEEKLY:
-      case LimitType.SHARE_WEEKLY:
         return this.getWeekStart();
+      case LimitType.SHARE_FACEBOOK:
       case LimitType.PRODUCT_CARD_CLICK:
         // Use a fixed date (1970-01-01) to represent lifetime limit
         return new Date('1970-01-01T00:00:00.000Z');
@@ -72,8 +72,8 @@ export class UserLimitService {
       case LimitType.WISH_WEEKLY:
         maxCount = WISH_LIMITS.WEEKLY_WISH_POINTS_LIMIT;
         break;
-      case LimitType.SHARE_WEEKLY:
-        maxCount = SHARE_LIMITS.WEEKLY_SHARE_POINTS_LIMIT;
+      case LimitType.SHARE_FACEBOOK:
+        maxCount = SHARE_LIMITS.LIFETIME_SHARE_POINTS_LIMIT;
         break;
       case LimitType.PRODUCT_CARD_CLICK:
         maxCount = PRODUCT_CARD_LIMITS.LIFETIME_CLICK_LIMIT;
@@ -111,7 +111,7 @@ export class UserLimitService {
         case LimitType.WISH_WEEKLY:
           points = POINTS.WISH_CREATION;
           break;
-        case LimitType.SHARE_WEEKLY:
+        case LimitType.SHARE_FACEBOOK:
           points = POINTS.FACEBOOK_SHARE;
           break;
         case LimitType.PRODUCT_CARD_CLICK:
@@ -203,8 +203,8 @@ export class UserLimitService {
         maxCount = WISH_LIMITS.WEEKLY_WISH_POINTS_LIMIT;
         pointsPerAction = POINTS.WISH_CREATION;
         break;
-      case LimitType.SHARE_WEEKLY:
-        maxCount = SHARE_LIMITS.WEEKLY_SHARE_POINTS_LIMIT;
+      case LimitType.SHARE_FACEBOOK:
+        maxCount = SHARE_LIMITS.LIFETIME_SHARE_POINTS_LIMIT;
         pointsPerAction = POINTS.FACEBOOK_SHARE;
         break;
       case LimitType.PRODUCT_CARD_CLICK:
@@ -232,7 +232,7 @@ export class UserLimitService {
     const stats = await Promise.all([
       this.getLimitStats(userId, LimitType.POST_WEEKLY),
       this.getLimitStats(userId, LimitType.WISH_WEEKLY),
-      this.getLimitStats(userId, LimitType.SHARE_WEEKLY),
+      this.getLimitStats(userId, LimitType.SHARE_FACEBOOK),
     ]);
 
     return {

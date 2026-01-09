@@ -11,15 +11,15 @@ export class ShareService {
     private userLimitService: UserLimitService,
   ) {}
 
-  // Check if user can receive Facebook share bonus this week
+  // Check if user can receive Facebook share bonus (lifetime)
   async canReceiveShareBonus(userId: string): Promise<boolean> {
-    return this.userLimitService.canReceiveBonus(userId, LimitType.SHARE_WEEKLY);
+    return this.userLimitService.canReceiveBonus(userId, LimitType.SHARE_FACEBOOK);
   }
 
-  // Award points for sharing a post, wish, or mood card to Facebook (first share per week)
+  // Award points for sharing a post, wish, or mood card to Facebook (first share lifetime)
   // Chỉ cộng điểm nếu:
   // 1. Share lên Facebook (platform === 'facebook')
-  // 2. Chưa đạt weekly limit (cả post, wish và mood-card dùng chung limit - chỉ cộng 1 lần/tuần)
+  // 2. Chưa đạt lifetime limit (cả post, wish và mood-card dùng chung limit - chỉ cộng 1 lần trong suốt chương trình)
   async awardShareBonus(
     userId: string,
     contentId: string,
@@ -34,8 +34,8 @@ export class ShareService {
       return false;
     }
 
-    // Cả post, wish và mood-card đều dùng cùng SHARE_WEEKLY limit type
-    // Nên dù share post, wish hay mood-card, chỉ được cộng 50 điểm 1 lần/tuần
+    // Cả post, wish và mood-card đều dùng cùng SHARE_FACEBOOK limit type
+    // Nên dù share post, wish hay mood-card, chỉ được cộng 50 điểm 1 lần trong suốt chương trình
     const reason = 'Facebook share bonus'; // Dùng chung reason cho cả post, wish và mood-card
     const note =
       contentType === 'post'
@@ -46,7 +46,7 @@ export class ShareService {
 
     return this.userLimitService.awardBonus(
       userId,
-      LimitType.SHARE_WEEKLY,
+      LimitType.SHARE_FACEBOOK,
       reason,
       note,
     );
@@ -54,6 +54,6 @@ export class ShareService {
 
   // Get share stats for user
   async getShareStats(userId: string) {
-    return this.userLimitService.getLimitStats(userId, LimitType.SHARE_WEEKLY);
+    return this.userLimitService.getLimitStats(userId, LimitType.SHARE_FACEBOOK);
   }
 }

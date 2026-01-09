@@ -255,7 +255,7 @@ enum RewardCategory {
 enum LimitType {
   POST_WEEKLY
   WISH_WEEKLY
-  SHARE_WEEKLY
+  SHARE_FACEBOOK
   PRODUCT_CARD_CLICK
 }
 
