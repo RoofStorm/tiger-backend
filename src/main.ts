@@ -10,7 +10,7 @@ if (typeof globalThis.crypto === 'undefined') {
 }
 
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, LogLevel } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -19,7 +19,11 @@ import * as compression from 'compression';
 import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Configure logger based on environment variable
+  const logLevels = (process.env.LOG_LEVEL?.split(',') || ['log', 'error', 'warn', 'debug', 'verbose']) as LogLevel[];
+  const app = await NestFactory.create(AppModule, {
+    logger: logLevels,
+  });
 
   // Security middleware
   app.use(helmet());
