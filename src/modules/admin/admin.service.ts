@@ -634,4 +634,194 @@ export class AdminService {
       post: updatedPost,
     };
   }
+
+  async exportRedeemsToExcel(
+    adminId: string,
+    res: Response,
+    status?: string,
+  ) {
+    // Check if user is admin
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can access this endpoint');
+    }
+
+    // Get all monthly rankings (no pagination for export)
+    const monthlyRankings = await this.prisma.monthlyPostRanking.findMany({
+      orderBy: [{ month: 'desc' }, { rank: 'asc' }],
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+        post: {
+          select: {
+            id: true,
+            type: true,
+            url: true,
+            caption: true,
+            likeCount: true,
+          },
+        },
+      },
+    });
+
+    // Build where clause for redeem requests
+    const where: any = {};
+    if (status) where.status = status as any;
+
+    // Get all redeem requests (no pagination for export)
+    const redeemRequests = await this.prisma.redeemRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+        reward: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            pointsRequired: true,
+            lifeRequired: true,
+            rewardCategory: true,
+            rank: true,
+            month: true,
+          },
+        },
+      },
+    });
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook();
+
+    // Sheet 1: Monthly Rankings (Danh sách người thắng giải)
+    const rankingsSheet = workbook.addWorksheet('Danh sách người thắng giải');
+    rankingsSheet.columns = [
+      { header: 'Tháng', key: 'month', width: 15 },
+      { header: 'Hạng', key: 'rank', width: 10 },
+      { header: 'Tên người dùng', key: 'userName', width: 30 },
+      { header: 'Email', key: 'userEmail', width: 40 },
+      { header: 'ID Người dùng', key: 'userId', width: 36 },
+      { header: 'ID Bài viết', key: 'postId', width: 36 },
+      { header: 'Loại bài viết', key: 'postType', width: 15 },
+      { header: 'Số lượt thích', key: 'likeCount', width: 15 },
+      { header: 'URL bài viết', key: 'postUrl', width: 50 },
+      { header: 'Mô tả bài viết', key: 'postCaption', width: 50 },
+      { header: 'Ngày tạo', key: 'createdAt', width: 25 },
+    ];
+
+    rankingsSheet.getRow(1).font = { bold: true };
+    rankingsSheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    monthlyRankings.forEach((ranking) => {
+      rankingsSheet.addRow({
+        month: ranking.month.toISOString().split('T')[0],
+        rank: ranking.rank,
+        userName: ranking.user.name || '',
+        userEmail: ranking.user.email || '',
+        userId: ranking.userId,
+        postId: ranking.postId,
+        postType: ranking.post.type || '',
+        likeCount: ranking.likeCount,
+        postUrl: ranking.post.url || '',
+        postCaption: ranking.post.caption || '',
+        createdAt: ranking.createdAt ? new Date(ranking.createdAt) : '',
+      });
+    });
+
+    // Format date columns
+    rankingsSheet.getColumn('month').numFmt = 'yyyy-mm-dd';
+    rankingsSheet.getColumn('createdAt').numFmt = 'yyyy-mm-dd hh:mm:ss';
+
+    // Sheet 2: Redeem Requests (Quản lý đổi thưởng)
+    const redeemsSheet = workbook.addWorksheet('Quản lý đổi thưởng');
+    redeemsSheet.columns = [
+      { header: 'ID', key: 'id', width: 36 },
+      { header: 'Tên người dùng', key: 'userName', width: 30 },
+      { header: 'Email người dùng', key: 'userEmail', width: 40 },
+      { header: 'ID Người dùng', key: 'userId', width: 36 },
+      { header: 'Tên phần thưởng', key: 'rewardName', width: 30 },
+      { header: 'Mô tả phần thưởng', key: 'rewardDescription', width: 40 },
+      { header: 'Loại phần thưởng', key: 'rewardCategory', width: 20 },
+      { header: 'Hạng (nếu có)', key: 'rewardRank', width: 15 },
+      { header: 'Tháng (nếu có)', key: 'rewardMonth', width: 15 },
+      { header: 'Điểm yêu cầu', key: 'pointsRequired', width: 15 },
+      { header: 'Điểm đã dùng', key: 'pointsUsed', width: 15 },
+      { header: 'Trạng thái', key: 'status', width: 15 },
+      { header: 'Số điện thoại người nhận', key: 'receiverPhone', width: 20 },
+      { header: 'Email người nhận', key: 'receiverEmail', width: 40 },
+      { header: 'Lý do từ chối', key: 'rejectionReason', width: 40 },
+      { header: 'Ngày tạo', key: 'createdAt', width: 25 },
+      { header: 'Ngày cập nhật', key: 'updatedAt', width: 25 },
+    ];
+
+    redeemsSheet.getRow(1).font = { bold: true };
+    redeemsSheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    redeemRequests.forEach((redeem) => {
+      redeemsSheet.addRow({
+        id: redeem.id,
+        userName: redeem.user.name || '',
+        userEmail: redeem.user.email || '',
+        userId: redeem.userId,
+        rewardName: redeem.reward.name || '',
+        rewardDescription: redeem.reward.description || '',
+        rewardCategory: redeem.reward.rewardCategory || '',
+        rewardRank: redeem.reward.rank || '',
+        rewardMonth: redeem.reward.month
+          ? new Date(redeem.reward.month).toISOString().split('T')[0]
+          : '',
+        pointsRequired: redeem.reward.pointsRequired || 0,
+        pointsUsed: redeem.pointsUsed,
+        status: redeem.status || '',
+        receiverPhone: redeem.receiverPhone || '',
+        receiverEmail: redeem.receiverEmail || '',
+        rejectionReason: redeem.rejectionReason || '',
+        createdAt: redeem.createdAt ? new Date(redeem.createdAt) : '',
+        updatedAt: redeem.updatedAt ? new Date(redeem.updatedAt) : '',
+      });
+    });
+
+    // Format date columns
+    redeemsSheet.getColumn('rewardMonth').numFmt = 'yyyy-mm-dd';
+    redeemsSheet.getColumn('createdAt').numFmt = 'yyyy-mm-dd hh:mm:ss';
+    redeemsSheet.getColumn('updatedAt').numFmt = 'yyyy-mm-dd hh:mm:ss';
+
+    // Set response headers
+    const filename = `redeems_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"`,
+    );
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+  }
 }
