@@ -28,6 +28,43 @@ export class AuthService {
     private anonymousConversionService: AnonymousConversionService,
   ) {}
 
+  // Check if this is user's first login
+  // Returns true if user has never received daily login bonus or first login bonus
+  private async isFirstLogin(userId: string): Promise<boolean> {
+    const hasLoginBonus = await this.prisma.pointLog.findFirst({
+      where: {
+        userId,
+        reason: {
+          in: ['Daily login bonus', 'First login bonus'],
+        },
+      },
+    });
+
+    return !hasLoginBonus;
+  }
+
+  // Check if user has received First login bonus today
+  // Returns true if user has received First login bonus in today
+  private async hasReceivedFirstLoginBonusToday(userId: string): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const hasFirstLoginBonusToday = await this.prisma.pointLog.findFirst({
+      where: {
+        userId,
+        reason: 'First login bonus',
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    return !!hasFirstLoginBonusToday;
+  }
+
   async register(registerDto: RegisterDto, anonymousId?: string) {
     const { username, password, email, name, referralCode } = registerDto;
 
@@ -163,34 +200,69 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
 
-    // Award daily login bonus (automatically handles duplicate prevention)
-    // Updated to 10 points per day
-    // pointsAwarded will only be true if points were actually awarded
-    // If user already received bonus today, awardPoints will throw BadRequestException
-    // and pointsAwarded will remain false
+    // Check if this is first login
+    const isFirst = await this.isFirstLogin(user.id);
     let pointsAwarded = false;
-    try {
-      await this.pointsService.awardPoints(
-        user.id,
-        POINTS.DAILY_LOGIN_BONUS,
-        'Daily login bonus',
-      );
-      pointsAwarded = true; // Only set to true if award was successful
-      console.log(
-        `🎁 Daily login bonus awarded to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
-      );
-    } catch (error) {
-      // Silently fail if daily bonus already awarded or limit reached
-      // This prevents login failure due to bonus issues
-      if (error instanceof BadRequestException) {
-        console.log(
-          `ℹ️ Daily login bonus already awarded today for ${user.username || user.email}`,
+    let pointsMessage = 'Đăng nhập thành công.';
+
+    if (isFirst) {
+      // Award first login bonus (200 points, replaces daily login bonus)
+      try {
+        await this.pointsService.awardPoints(
+          user.id,
+          POINTS.FIRST_LOGIN_BONUS,
+          'First login bonus',
         );
-      } else {
+        pointsAwarded = true;
+        pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.FIRST_LOGIN_BONUS} điểm cho lần đăng nhập đầu tiên.`;
+        console.log(
+          `🎁 First login bonus awarded to ${user.username || user.email} (+${POINTS.FIRST_LOGIN_BONUS} points)`,
+        );
+      } catch (error) {
         console.error(
-          `❌ Error awarding daily login bonus to ${user.username || user.email}:`,
+          `❌ Error awarding first login bonus to ${user.username || user.email}:`,
           error,
         );
+      }
+    } else {
+      // Check if user has already received First login bonus today
+      // If yes, don't award Daily login bonus
+      const hasFirstLoginBonusToday = await this.hasReceivedFirstLoginBonusToday(user.id);
+      
+      if (hasFirstLoginBonusToday) {
+        console.log(
+          `ℹ️ User ${user.username || user.email} already received First login bonus today, skipping Daily login bonus`,
+        );
+      } else {
+        // Award daily login bonus (automatically handles duplicate prevention)
+        // pointsAwarded will only be true if points were actually awarded
+        // If user already received bonus today, awardPoints will throw BadRequestException
+        // and pointsAwarded will remain false
+        try {
+          await this.pointsService.awardPoints(
+            user.id,
+            POINTS.DAILY_LOGIN_BONUS,
+            'Daily login bonus',
+          );
+          pointsAwarded = true; // Only set to true if award was successful
+          pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`;
+          console.log(
+            `🎁 Daily login bonus awarded to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
+          );
+        } catch (error) {
+          // Silently fail if daily bonus already awarded or limit reached
+          // This prevents login failure due to bonus issues
+          if (error instanceof BadRequestException) {
+            console.log(
+              `ℹ️ Daily login bonus already awarded today for ${user.username || user.email}`,
+            );
+          } else {
+            console.error(
+              `❌ Error awarding daily login bonus to ${user.username || user.email}:`,
+              error,
+            );
+          }
+        }
       }
     }
 
@@ -211,9 +283,8 @@ export class AuthService {
       ...tokens,
       user: this.usersService.sanitizeUser(updatedUser || user),
       pointsAwarded,
-      pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`
-        : 'Đăng nhập thành công.',
+      pointsMessage,
+      isFirstLogin: isFirst,
     };
   }
 
@@ -287,6 +358,8 @@ export class AuthService {
   ) {
     const { providerId, email, name, avatarUrl } = oauthDto;
     let pointsAwarded = false;
+    let isFirstLoginBonus = false;
+    let isFirstLogin = false;
 
     // Tìm user theo email hoặc providerId + loginMethod
     let user = await this.prisma.user.findUnique({
@@ -361,31 +434,65 @@ export class AuthService {
         );
       }
 
-      // Award daily login bonus (automatically handles duplicate prevention)
-      // pointsAwarded will only be true if points were actually awarded
-      // If user already received bonus today, awardPoints will throw BadRequestException
-      // and pointsAwarded will remain false
-      try {
-        await this.pointsService.awardPoints(
-          user.id,
-          POINTS.DAILY_LOGIN_BONUS,
-          'Daily login bonus',
-        );
-        pointsAwarded = true; // Only set to true if award was successful
-        console.log(
-          `🎁 Daily login bonus awarded to ${user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
-        );
-      } catch (error) {
-        // Silently fail if daily bonus already awarded or limit reached
-        if (error instanceof BadRequestException) {
-          console.log(
-            `ℹ️ Daily login bonus already awarded today for ${user.email}`,
+      // Check if this is first login
+      const isFirst = await this.isFirstLogin(user.id);
+      isFirstLogin = isFirst;
+      if (isFirst) {
+        // Award first login bonus (200 points, replaces daily login bonus)
+        try {
+          await this.pointsService.awardPoints(
+            user.id,
+            POINTS.FIRST_LOGIN_BONUS,
+            'First login bonus',
           );
-        } else {
+          pointsAwarded = true;
+          isFirstLoginBonus = true;
+          console.log(
+            `🎁 First login bonus awarded to ${user.email} (+${POINTS.FIRST_LOGIN_BONUS} points)`,
+          );
+        } catch (error) {
           console.error(
-            `❌ Error awarding daily login bonus to ${user.email}:`,
+            `❌ Error awarding first login bonus to ${user.email}:`,
             error,
           );
+        }
+      } else {
+        // Check if user has already received First login bonus today
+        // If yes, don't award Daily login bonus
+        const hasFirstLoginBonusToday = await this.hasReceivedFirstLoginBonusToday(user.id);
+        
+        if (hasFirstLoginBonusToday) {
+          console.log(
+            `ℹ️ User ${user.email} already received First login bonus today, skipping Daily login bonus`,
+          );
+        } else {
+          // Award daily login bonus (automatically handles duplicate prevention)
+          // pointsAwarded will only be true if points were actually awarded
+          // If user already received bonus today, awardPoints will throw BadRequestException
+          // and pointsAwarded will remain false
+          try {
+            await this.pointsService.awardPoints(
+              user.id,
+              POINTS.DAILY_LOGIN_BONUS,
+              'Daily login bonus',
+            );
+            pointsAwarded = true; // Only set to true if award was successful
+            console.log(
+              `🎁 Daily login bonus awarded to ${user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
+            );
+          } catch (error) {
+            // Silently fail if daily bonus already awarded or limit reached
+            if (error instanceof BadRequestException) {
+              console.log(
+                `ℹ️ Daily login bonus already awarded today for ${user.email}`,
+              );
+            } else {
+              console.error(
+                `❌ Error awarding daily login bonus to ${user.email}:`,
+                error,
+              );
+            }
+          }
         }
       }
 
@@ -421,6 +528,27 @@ export class AuthService {
       console.log(
         `✅ Generated referral code for new ${provider} user: ${newUserReferralCode}`,
       );
+
+      // Award first login bonus for new user (200 points, replaces daily login bonus)
+      // New user is always first login
+      isFirstLogin = true;
+      try {
+        await this.pointsService.awardPoints(
+          user.id,
+          POINTS.FIRST_LOGIN_BONUS,
+          'First login bonus',
+        );
+        pointsAwarded = true;
+        isFirstLoginBonus = true;
+        console.log(
+          `🎁 First login bonus awarded to new ${provider} user ${user.email} (+${POINTS.FIRST_LOGIN_BONUS} points)`,
+        );
+      } catch (error) {
+        console.error(
+          `❌ Error awarding first login bonus to new ${provider} user ${user.email}:`,
+          error,
+        );
+      }
     }
 
     // Track anonymous to logged-in conversion if anonymousId exists
@@ -434,13 +562,22 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
 
+    // Determine points message
+    let pointsMessage = 'Đăng nhập thành công.';
+    if (pointsAwarded) {
+      if (isFirstLoginBonus) {
+        pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.FIRST_LOGIN_BONUS} điểm cho lần đăng nhập đầu tiên.`;
+      } else {
+        pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`;
+      }
+    }
+
     return {
       ...tokens,
       user: this.usersService.sanitizeUser(user),
       pointsAwarded,
-      pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`
-        : 'Đăng nhập thành công.',
+      pointsMessage,
+      isFirstLogin,
     };
   }
 
@@ -621,35 +758,72 @@ export class AuthService {
       expires = new Date(decoded.exp * 1000);
     }
 
-    // Award daily login bonus (automatically handles duplicate prevention)
-    // This allows users to get daily bonus even if they don't login again
-    // because refresh token is valid for 7 days
-    // pointsAwarded will only be true if points were actually awarded
-    // If user already received bonus today, awardPoints will throw BadRequestException
-    // and pointsAwarded will remain false
+    // Check if this is first login
+    const isFirst = await this.isFirstLogin(user.id);
+    const isFirstLogin = isFirst;
     let pointsAwarded = false;
-    try {
-      await this.pointsService.awardPoints(
-        user.id,
-        POINTS.DAILY_LOGIN_BONUS,
-        'Daily login bonus',
-      );
-      pointsAwarded = true; // Only set to true if award was successful
-      console.log(
-        `🎁 Daily login bonus awarded via session to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
-      );
-    } catch (error) {
-      // Silently fail if daily bonus already awarded or limit reached
-      // This prevents session check failure due to bonus issues
-      if (error instanceof BadRequestException) {
-        console.log(
-          `ℹ️ Daily login bonus already awarded today for ${user.username || user.email}`,
+    let pointsMessage = 'Đã cập nhật phiên đăng nhập.';
+
+    if (isFirst) {
+      // Award first login bonus (200 points, replaces daily login bonus)
+      try {
+        await this.pointsService.awardPoints(
+          user.id,
+          POINTS.FIRST_LOGIN_BONUS,
+          'First login bonus',
         );
-      } else {
+        pointsAwarded = true;
+        pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.FIRST_LOGIN_BONUS} điểm cho lần đăng nhập đầu tiên.`;
+        console.log(
+          `🎁 First login bonus awarded via session to ${user.username || user.email} (+${POINTS.FIRST_LOGIN_BONUS} points)`,
+        );
+      } catch (error) {
         console.error(
-          `❌ Error awarding daily login bonus via session to ${user.username || user.email}:`,
+          `❌ Error awarding first login bonus via session to ${user.username || user.email}:`,
           error,
         );
+      }
+    } else {
+      // Check if user has already received First login bonus today
+      // If yes, don't award Daily login bonus
+      const hasFirstLoginBonusToday = await this.hasReceivedFirstLoginBonusToday(user.id);
+      
+      if (hasFirstLoginBonusToday) {
+        console.log(
+          `ℹ️ User ${user.username || user.email} already received First login bonus today, skipping Daily login bonus`,
+        );
+      } else {
+        // Award daily login bonus (automatically handles duplicate prevention)
+        // This allows users to get daily bonus even if they don't login again
+        // because refresh token is valid for 7 days
+        // pointsAwarded will only be true if points were actually awarded
+        // If user already received bonus today, awardPoints will throw BadRequestException
+        // and pointsAwarded will remain false
+        try {
+          await this.pointsService.awardPoints(
+            user.id,
+            POINTS.DAILY_LOGIN_BONUS,
+            'Daily login bonus',
+          );
+          pointsAwarded = true; // Only set to true if award was successful
+          pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`;
+          console.log(
+            `🎁 Daily login bonus awarded via session to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
+          );
+        } catch (error) {
+          // Silently fail if daily bonus already awarded or limit reached
+          // This prevents session check failure due to bonus issues
+          if (error instanceof BadRequestException) {
+            console.log(
+              `ℹ️ Daily login bonus already awarded today for ${user.username || user.email}`,
+            );
+          } else {
+            console.error(
+              `❌ Error awarding daily login bonus via session to ${user.username || user.email}:`,
+              error,
+            );
+          }
+        }
       }
     }
 
@@ -664,9 +838,8 @@ export class AuthService {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       pointsAwarded,
-      pointsMessage: pointsAwarded
-        ? `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`
-        : 'Đã cập nhật phiên đăng nhập.',
+      pointsMessage,
+      isFirstLogin,
     };
   }
 

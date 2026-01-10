@@ -1,4 +1,5 @@
 export const POINTS = {
+  FIRST_LOGIN_BONUS: 200, // 200 points for first login (replaces daily login bonus on first login)
   DAILY_LOGIN_BONUS: 10,
   // REFERRAL_BONUS: 50, // Disabled - no points for referrals
   POST_CREATION: 100, // 100 points for first post per week
