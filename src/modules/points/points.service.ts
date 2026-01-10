@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GrantPointsDto } from './dto/grant-points.dto';
 import { Prisma, LimitType } from '@prisma/client';
@@ -87,6 +91,33 @@ export class PointsService {
         pages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async getPointsHistoryForAdmin(
+    adminId: string,
+    userId: string,
+    page = 1,
+    limit = 20,
+  ) {
+    // Verify admin
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can access this endpoint');
+    }
+
+    // Verify user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    return this.getPointsHistory(userId, page, limit);
   }
 
   async getUserPoints(userId: string) {

@@ -26,6 +26,29 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 export class PointsController {
   constructor(private readonly pointsService: PointsService) {}
 
+  @Get('history/:userId')
+  @ApiOperation({ summary: 'Get user points history by userId (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Points history retrieved successfully',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getPointsHistoryForAdmin(
+    @Param('userId') userId: string,
+    @Request() req,
+    @Query('page') page: string | number = 1,
+    @Query('limit') limit: string | number = 20,
+  ) {
+    const pageNum = parseInt(page.toString(), 10) || 1;
+    const limitNum = parseInt(limit.toString(), 10) || 20;
+    return this.pointsService.getPointsHistoryForAdmin(
+      req.user.id,
+      userId,
+      pageNum,
+      limitNum,
+    );
+  }
+
   @Get('history')
   @ApiOperation({ summary: 'Get user points history' })
   @ApiResponse({
@@ -34,10 +57,12 @@ export class PointsController {
   })
   async getPointsHistory(
     @Request() req,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query('page') page: string | number = 1,
+    @Query('limit') limit: string | number = 20,
   ) {
-    return this.pointsService.getPointsHistory(req.user.id, page, limit);
+    const pageNum = parseInt(page.toString(), 10) || 1;
+    const limitNum = parseInt(limit.toString(), 10) || 20;
+    return this.pointsService.getPointsHistory(req.user.id, pageNum, limitNum);
   }
 
   @Get('summary')
