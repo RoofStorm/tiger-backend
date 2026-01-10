@@ -8,7 +8,9 @@ import {
   UseGuards,
   Request,
   Patch,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -43,6 +45,35 @@ export class AdminController {
     }
 
     return this.adminService.getAdminStats(req.user.id);
+  }
+
+  @Get('users/export-excel')
+  @ApiOperation({ summary: 'Export all users to Excel (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Excel file downloaded successfully',
+    content: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async exportUsersToExcel(
+    @Request() req,
+    @Res() res: Response,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.exportUsersToExcel(
+      req.user.id,
+      res,
+      role,
+      status,
+    );
   }
 
   @Get('users')

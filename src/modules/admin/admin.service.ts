@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Response } from 'express';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class AdminService {
@@ -217,6 +219,104 @@ export class AdminService {
         pages: Math.ceil(total / limitNum),
       },
     };
+  }
+
+  async exportUsersToExcel(
+    adminId: string,
+    res: Response,
+    role?: string,
+    status?: string,
+  ) {
+    // Check if user is admin
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can access this endpoint');
+    }
+
+    // Build where clause for filtering
+    const where: any = {};
+    if (role) where.role = role as any;
+    if (status) where.status = status as any;
+
+    // Get all users (no pagination for export)
+    const users = await this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        role: true,
+        status: true,
+        points: true,
+        loginMethod: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Users');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'ID', key: 'id', width: 36 },
+      { header: 'Name', key: 'name', width: 30 },
+      { header: 'Email', key: 'email', width: 40 },
+      { header: 'Role', key: 'role', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Points', key: 'points', width: 15 },
+      { header: 'Login Method', key: 'loginMethod', width: 20 },
+      { header: 'Created At', key: 'createdAt', width: 25 },
+      { header: 'Updated At', key: 'updatedAt', width: 25 },
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    // Add data rows
+    users.forEach((user) => {
+      worksheet.addRow({
+        id: user.id,
+        name: user.name || '',
+        email: user.email || '',
+        role: user.role || '',
+        status: user.status || '',
+        points: user.points || 0,
+        loginMethod: user.loginMethod || '',
+        createdAt: user.createdAt ? new Date(user.createdAt) : '',
+        updatedAt: user.updatedAt ? new Date(user.updatedAt) : '',
+      });
+    });
+
+    // Format date columns
+    worksheet.getColumn('createdAt').numFmt = 'yyyy-mm-dd hh:mm:ss';
+    worksheet.getColumn('updatedAt').numFmt = 'yyyy-mm-dd hh:mm:ss';
+
+    // Set response headers
+    const filename = `users_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"`,
+    );
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
   }
 
   async getPosts(
