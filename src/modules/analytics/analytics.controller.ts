@@ -8,7 +8,9 @@ import {
   Request,
   ForbiddenException,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -142,6 +144,46 @@ export class AnalyticsController {
     }
 
     return this.analyticsService.getAnalysis(query);
+  }
+
+  @Get('export-excel')
+  @UseGuards(NextAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Export analytics data to Excel with 2 sheets (Admin only)',
+    description:
+      'Exports analytics data to Excel file with 2 sheets: Summary (aggregated metrics) and Analysis (raw events). ' +
+      'Supports filtering by date range, page, zone, and action. Max date range: 90 days.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Excel file downloaded successfully',
+    content: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid date range',
+  })
+  async exportAnalyticsToExcel(
+    @Query() query: AnalyticsSummaryQueryDto,
+    @Request() req,
+    @Res() res: Response,
+  ) {
+    // Verify admin
+    const user = req.user;
+    if (!user || user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can export analytics');
+    }
+
+    return this.analyticsService.exportAnalyticsToExcel(query, res);
   }
 
   /**

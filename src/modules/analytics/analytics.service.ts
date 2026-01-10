@@ -8,6 +8,8 @@ import { CreateAnalyticsEventDto } from './dto/create-analytics-event.dto';
 import { AnalyticsSummaryQueryDto } from './dto/analytics-summary.dto';
 import { AnalyticsQueueService } from './analytics-queue.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { Response } from 'express';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class AnalyticsService {
@@ -363,6 +365,212 @@ export class AnalyticsService {
       count: rows.length,
       hasMore,
     };
+  }
+
+  async exportAnalyticsToExcel(
+    query: AnalyticsSummaryQueryDto,
+    res: Response,
+  ) {
+    const { from, to, page, zone } = query;
+
+    // Validate date range
+    let startDate: Date;
+    let endDate: Date;
+
+    if (from && to) {
+      startDate = new Date(from);
+      endDate = new Date(to);
+      endDate.setHours(23, 59, 59, 999);
+      if (startDate > endDate) {
+        throw new BadRequestException(
+          'From date must be before or equal to to date',
+        );
+      }
+      const daysDiff = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysDiff > 90) {
+        throw new BadRequestException('Date range cannot exceed 90 days');
+      }
+    } else {
+      endDate = new Date();
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+    }
+
+    // Get summary data
+    const summary = await this.getSummary(query);
+
+    // Get all analysis data (no pagination)
+    const eventWhere: any = {
+      createdAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+      AND: [
+        {
+          OR: [
+            { action: 'click' },
+            { value: { gt: 0 } },
+            {
+              action: {
+                notIn: ['page_view', 'zone_view', 'view', 'click'],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    if (page) {
+      eventWhere.page = page;
+      if (zone) {
+        eventWhere.zone = zone;
+      } else {
+        eventWhere.zone = null;
+      }
+    }
+
+    // Get all events (no limit for export)
+    const allEvents = await this.prisma.analyticsEvent.findMany({
+      where: eventWhere,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Transform events to analysis rows
+    const analysisRows = allEvents.map((event) => {
+      let action = event.action;
+      let unit = 'event';
+      let value = event.value || 1;
+
+      if (
+        ['page_view', 'zone_view', 'view_end', 'complete'].includes(
+          event.action,
+        ) &&
+        event.value
+      ) {
+        action = 'duration';
+        unit = 'seconds';
+      } else if (event.action === 'click') {
+        unit = 'click';
+      } else {
+        unit = `${event.action}s`;
+        if (event.action === 'start') unit = 'starts';
+        else if (event.action === 'submit') unit = 'submits';
+        else if (event.action === 'complete') unit = 'completions';
+        else if (event.action === 'upload') unit = 'uploads';
+      }
+
+      return {
+        date: event.createdAt.toISOString().split('T')[0],
+        timestamp: event.createdAt.toISOString(),
+        page: event.page,
+        zone: event.zone || null,
+        action,
+        component: event.component || null,
+        value,
+        unit,
+        metadata: JSON.stringify((event.metadata as Record<string, any>) || {}),
+      };
+    });
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook();
+
+    // Sheet 1: Summary
+    const summarySheet = workbook.addWorksheet('Summary');
+    summarySheet.columns = [
+      { header: 'Metric', key: 'metric', width: 30 },
+      { header: 'Value', key: 'value', width: 20 },
+    ];
+
+    summarySheet.getRow(1).font = { bold: true };
+    summarySheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    summarySheet.addRow({ metric: 'Page', value: summary.page });
+    summarySheet.addRow({ metric: 'Zone', value: summary.zone });
+    summarySheet.addRow({
+      metric: 'Date Range (From)',
+      value: summary.dateRange.from,
+    });
+    summarySheet.addRow({
+      metric: 'Date Range (To)',
+      value: summary.dateRange.to,
+    });
+    summarySheet.addRow({ metric: 'Total Views', value: summary.totalViews });
+    summarySheet.addRow({
+      metric: 'Total Clicks',
+      value: summary.totalClicks,
+    });
+    summarySheet.addRow({
+      metric: 'Total Durations (seconds)',
+      value: summary.totalDurations,
+    });
+    summarySheet.addRow({
+      metric: 'Average Duration (seconds)',
+      value: summary.avgDuration,
+    });
+    summarySheet.addRow({
+      metric: 'Unique Sessions',
+      value: summary.uniqueSessions,
+    });
+    summarySheet.addRow({
+      metric: 'Unique Users',
+      value: summary.uniqueUsers,
+    });
+    summarySheet.addRow({
+      metric: 'Unique Anonymous Users',
+      value: summary.uniqueAnonymousUsers,
+    });
+
+    // Sheet 2: Analysis
+    const analysisSheet = workbook.addWorksheet('Analysis');
+    analysisSheet.columns = [
+      { header: 'Date', key: 'date', width: 12 },
+      { header: 'Timestamp', key: 'timestamp', width: 25 },
+      { header: 'Page', key: 'page', width: 20 },
+      { header: 'Zone', key: 'zone', width: 20 },
+      { header: 'Action', key: 'action', width: 15 },
+      { header: 'Component', key: 'component', width: 25 },
+      { header: 'Value', key: 'value', width: 15 },
+      { header: 'Unit', key: 'unit', width: 15 },
+      { header: 'Metadata', key: 'metadata', width: 40 },
+    ];
+
+    analysisSheet.getRow(1).font = { bold: true };
+    analysisSheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    };
+
+    analysisRows.forEach((row) => {
+      analysisSheet.addRow(row);
+    });
+
+    // Format date columns
+    analysisSheet.getColumn('timestamp').numFmt = 'yyyy-mm-dd hh:mm:ss';
+
+    // Set response headers
+    const filename = `analytics_export_${summary.dateRange.from}_to_${summary.dateRange.to}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"`,
+    );
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
   }
 
   // Legacy methods (kept for backward compatibility, can be removed later)
