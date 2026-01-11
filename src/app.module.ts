@@ -17,6 +17,7 @@ import { MoodCardsModule } from './modules/mood-cards/mood-cards.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { HealthModule } from './modules/health/health.module';
 import { GuardsModule } from './common/guards/guards.module';
 import { RedisModule } from './common/redis/redis.module';
 import { NextAuthMiddleware } from './modules/auth/nextauth.middleware';
@@ -61,6 +62,7 @@ import { AnonymousTrackingCleanupService } from './common/services/anonymous-tra
     AdminModule,
     ReferralModule,
     NotificationsModule,
+    HealthModule,
     GuardsModule,
     RedisModule,
   ],
