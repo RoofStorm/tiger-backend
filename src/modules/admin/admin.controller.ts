@@ -169,6 +169,33 @@ export class AdminController {
     );
   }
 
+  @Get('redeems/export-excel')
+  @ApiOperation({
+    summary: 'Export redeems data to Excel with 2 sheets (Admin only)',
+    description:
+      'Exports redeems data to Excel file with 2 sheets: Monthly Rankings (Danh sách người thắng giải) and Redeem Requests (Quản lý đổi thưởng)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Excel file downloaded successfully',
+    content: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async exportRedeemsToExcel(
+    @Request() req,
+    @Res() res: Response,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.exportRedeemsToExcel(req.user.id, res, status);
+  }
+
   @Get('redeems')
   @ApiOperation({ summary: 'Get all redeem logs (Admin only)' })
   @ApiResponse({
