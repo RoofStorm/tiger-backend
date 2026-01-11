@@ -87,19 +87,6 @@ async function bootstrap() {
 
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
-
-  // Handle graceful shutdown
-  process.on('SIGTERM', async () => {
-    console.log('🛑 SIGTERM signal received: closing HTTP server gracefully');
-    await app.close();
-    console.log('✅ Application closed gracefully');
-  });
-
-  process.on('SIGINT', async () => {
-    console.log('🛑 SIGINT signal received: closing HTTP server gracefully');
-    await app.close();
-    console.log('✅ Application closed gracefully');
-  });
 }
 
 bootstrap();
