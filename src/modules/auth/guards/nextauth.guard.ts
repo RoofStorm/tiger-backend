@@ -3,10 +3,12 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 
 @Injectable()
 export class NextAuthGuard implements CanActivate {
+  private readonly logger = new Logger(NextAuthGuard.name);
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const user = request.user;

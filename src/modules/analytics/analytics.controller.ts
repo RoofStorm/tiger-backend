@@ -9,6 +9,7 @@ import {
   ForbiddenException,
   BadRequestException,
   Res,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -30,6 +31,7 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 @ApiTags('Analytics')
 @Controller('api/analytics')
 export class AnalyticsController {
+  private readonly logger = new Logger(AnalyticsController.name);
   constructor(
     private readonly analyticsService: AnalyticsService,
     private readonly rankingService: RankingService,

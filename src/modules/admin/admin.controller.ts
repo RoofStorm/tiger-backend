@@ -9,6 +9,7 @@ import {
   Request,
   Patch,
   Res,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -25,6 +26,7 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 @UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class AdminController {
+  private readonly logger = new Logger(AdminController.name);
   constructor(private readonly adminService: AdminService) {}
 
   @Get('stats')

@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAnalyticsEventDto } from './dto/create-analytics-event.dto';
@@ -13,6 +14,7 @@ import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class AnalyticsService {
+  private readonly logger = new Logger(AnalyticsService.name);
   constructor(
     private prisma: PrismaService,
     private queueService: AnalyticsQueueService,
