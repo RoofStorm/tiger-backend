@@ -56,9 +56,9 @@ export class AnalyticsController {
     
     // Debug logging to help troubleshoot
     if (userId) {
-      console.log(`[Analytics] Ingesting ${body.events.length} events for logged-in user: ${userId}`);
+      this.logger.debug(`[Analytics] Ingesting ${body.events.length} events for logged-in user: ${userId}`);
     } else {
-      console.log(`[Analytics] Ingesting ${body.events.length} events for anonymous user (sessionId: ${body.sessionId})`);
+      this.logger.debug(`[Analytics] Ingesting ${body.events.length} events for anonymous user (sessionId: ${body.sessionId})`);
     }
     
     return this.analyticsService.ingestEvents(

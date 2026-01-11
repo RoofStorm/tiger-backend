@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UserLimitService } from '../limits/user-limit.service';
 import { SHARE_LIMITS } from '../../constants/points';
@@ -6,6 +6,8 @@ import { LimitType } from '@prisma/client';
 
 @Injectable()
 export class ShareService {
+  private readonly logger = new Logger(ShareService.name);
+
   constructor(
     private prisma: PrismaService,
     private userLimitService: UserLimitService,
@@ -28,7 +30,7 @@ export class ShareService {
   ): Promise<boolean> {
     // Chỉ cộng điểm khi share lên Facebook
     if (platform !== 'facebook') {
-      console.log(
+      this.logger.debug(
         `ℹ️ Share to ${platform || 'unknown'} platform - no points awarded. Only Facebook shares earn points.`,
       );
       return false;

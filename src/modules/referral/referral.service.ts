@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UserLimitService } from '../limits/user-limit.service';
 // import { POINTS, REFERRAL_LIMITS } from '../../constants/points'; // Disabled - no points for referrals
 
 @Injectable()
 export class ReferralService {
+  private readonly logger = new Logger(ReferralService.name);
+
   constructor(
     private prisma: PrismaService,
     private userLimitService: UserLimitService,
@@ -117,7 +119,7 @@ export class ReferralService {
       });
 
       // No points awarded for referrals anymore
-      console.log(
+      this.logger.debug(
         `✅ Referral processed: ${referrer.email} referred ${newUserId} (no points - referral bonus disabled)`,
       );
 
@@ -127,7 +129,7 @@ export class ReferralService {
         pointsAwarded: false,
       };
     } catch (error) {
-      console.error('❌ Error processing referral:', error);
+      this.logger.error('❌ Error processing referral:', error);
       return {
         success: false,
         message: 'Error processing referral',
@@ -168,23 +170,23 @@ export class ReferralService {
 
     // Auto-generate referral code if user doesn't have one
     if (!user.referralCode) {
-      console.log(`🔄 Auto-generating referral code for user: ${userId}`);
+      this.logger.debug(`🔄 Auto-generating referral code for user: ${userId}`);
       try {
         const referralCode = await this.generateReferralCode();
-        console.log(`🔧 Generated code: ${referralCode}`);
+        this.logger.debug(`🔧 Generated code: ${referralCode}`);
 
         // Update user with new referral code
         await this.prisma.user.update({
           where: { id: userId },
           data: { referralCode },
         });
-        console.log(`💾 Updated user in database`);
+        this.logger.debug(`💾 Updated user in database`);
 
         // Update user object for return
         user.referralCode = referralCode;
-        console.log(`✅ Referral code generated: ${referralCode}`);
+        this.logger.debug(`✅ Referral code generated: ${referralCode}`);
       } catch (error) {
-        console.error(`❌ Error generating referral code:`, error);
+        this.logger.error(`❌ Error generating referral code:`, error);
       }
     }
 
@@ -202,7 +204,7 @@ export class ReferralService {
     weekStart.setHours(0, 0, 0, 0);
 
     const referralLink = this.generateReferralLink(user.referralCode);
-    console.log(
+    this.logger.debug(
       `🔗 Generated referral link: ${referralLink} for code: ${user.referralCode}`,
     );
 

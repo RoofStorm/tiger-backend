@@ -5,6 +5,7 @@ import {
   Body,
   Request,
   UseGuards,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -20,6 +21,8 @@ import { NextAuthGuard } from '../auth/guards/nextauth.guard';
 @UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class ReferralController {
+  private readonly logger = new Logger(ReferralController.name);
+
   constructor(private readonly referralService: ReferralService) {}
 
   @Get('test')
@@ -61,7 +64,7 @@ export class ReferralController {
         },
       };
     } catch (error) {
-      console.error('Error in getReferralCode:', error);
+      this.logger.error('Error in getReferralCode:', error);
       return {
         success: false,
         error: error.message,
@@ -94,7 +97,7 @@ export class ReferralController {
         data: stats,
       };
     } catch (error) {
-      console.error('Error in getReferralStats:', error);
+      this.logger.error('Error in getReferralStats:', error);
       return {
         success: false,
         error: error.message,
@@ -125,7 +128,7 @@ export class ReferralController {
         pointsAwarded: result.pointsAwarded,
       };
     } catch (error) {
-      console.error('Error in processReferral:', error);
+      this.logger.error('Error in processReferral:', error);
       return {
         success: false,
         message: 'Error processing referral',

@@ -12,7 +12,7 @@ export class AdminService {
   constructor(private prisma: PrismaService) {}
 
   async getAdminStats(userId: string) {
-    console.log('🔍 AdminService.getAdminStats called with userId:', userId);
+    this.logger.debug('🔍 AdminService.getAdminStats called with userId:', userId);
 
     try {
       // Check if user is admin
@@ -20,20 +20,20 @@ export class AdminService {
         where: { id: userId },
       });
 
-      console.log('🔍 User found:', user);
+      this.logger.debug('🔍 User found:', user);
 
       if (!user || user.role !== 'ADMIN') {
         throw new ForbiddenException('Only admins can access this endpoint');
       }
 
-      console.log('🔍 Querying database stats...');
+      this.logger.debug('🔍 Querying database stats...');
 
       // Test simple raw SQL query first
       try {
         const testQuery = await this.prisma.$queryRaw`SELECT 1 as test`;
-        console.log('🔍 Test query result:', testQuery);
+        this.logger.debug('🔍 Test query result:', testQuery);
       } catch (error) {
-        console.error('❌ Test query failed:', error);
+        this.logger.error('❌ Test query failed:', error);
         throw error;
       }
 
@@ -64,7 +64,7 @@ export class AdminService {
       const totalRedeems = Number((totalRedeemsResult as any)[0].count);
       const totalPointsAwarded = Number((totalPointsResult as any)[0].total);
 
-      console.log('🔍 Database stats (raw SQL):', {
+      this.logger.debug('🔍 Database stats (raw SQL):', {
         totalUsers,
         totalPosts,
         totalRedeems,
@@ -76,7 +76,7 @@ export class AdminService {
         timestamp: log.createdAt,
       }));
 
-      console.log('🔍 Recent activity count:', recentActivity.length);
+      this.logger.debug('🔍 Recent activity count:', recentActivity.length);
 
       const result = {
         totalUsers,
@@ -86,10 +86,10 @@ export class AdminService {
         recentActivity,
       };
 
-      console.log('🔍 Final result:', result);
+      this.logger.debug('🔍 Final result:', result);
       return result;
     } catch (error) {
-      console.error('❌ Error in AdminService.getAdminStats:', error);
+      this.logger.error('❌ Error in AdminService.getAdminStats:', error);
       throw error;
     }
   }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
@@ -6,6 +6,8 @@ import { AuthService } from '../auth.service';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+  private readonly logger = new Logger(GoogleStrategy.name);
+
   constructor(
     private configService: ConfigService,
     private authService: AuthService,
@@ -32,7 +34,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       if (!email) {
         // Tạo email giả từ Google ID để đảm bảo unique
         email = `google_${id}@google.temporary`;
-        console.log(
+        this.logger.debug(
           `⚠️ Google user ${id} không có email, tạo email tạm: ${email}`,
         );
       }
@@ -72,7 +74,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       // Passport cần user object
       done(null, userWithTokens);
     } catch (error) {
-      console.error('❌ Google OAuth validation error:', error);
+      this.logger.error('❌ Google OAuth validation error:', error);
       done(error, null);
     }
   }

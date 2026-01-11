@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
   Patch,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +26,8 @@ import { RedeemStatus } from '@prisma/client';
 @UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class RedeemController {
+  private readonly logger = new Logger(RedeemController.name);
+
   constructor(private readonly redeemService: RedeemService) {}
 
   @Get()
@@ -38,12 +41,12 @@ export class RedeemController {
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
-    console.log('🔍 RedeemController.getUserRedeems called');
-    console.log('🔍 Request user:', req.user);
-    console.log('🔍 User ID:', req.user?.id);
+    this.logger.debug('🔍 RedeemController.getUserRedeems called');
+    this.logger.debug('🔍 Request user:', req.user);
+    this.logger.debug('🔍 User ID:', req.user?.id);
 
     if (!req.user) {
-      console.log('❌ No user found in request');
+      this.logger.debug('❌ No user found in request');
       throw new Error('User not authenticated');
     }
 

@@ -3,11 +3,14 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class RewardsService {
+  private readonly logger = new Logger(RewardsService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async getAllRewards(
@@ -129,7 +132,7 @@ export class RewardsService {
           });
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        this.logger.error('Error fetching user data:', error);
       }
     }
 
@@ -157,13 +160,13 @@ export class RewardsService {
 
   async getRewardById(id: string) {
     try {
-      console.log('Getting reward by ID:', id);
+      this.logger.debug('Getting reward by ID:', id);
 
       const reward = await this.prisma.reward.findUnique({
         where: { id },
       });
 
-      console.log('Reward found:', reward);
+      this.logger.debug('Reward found:', reward);
 
       if (!reward) {
         throw new NotFoundException('Reward not found');
@@ -171,7 +174,7 @@ export class RewardsService {
 
       return reward;
     } catch (error) {
-      console.error('Error in getRewardById:', error);
+      this.logger.error('Error in getRewardById:', error);
       throw error;
     }
   }
@@ -249,7 +252,7 @@ export class RewardsService {
 
       return result;
     } catch (error) {
-      console.error('SoftDeleteReward - Error:', error);
+      this.logger.error('SoftDeleteReward - Error:', error);
       throw error;
     }
   }

@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as AWS from 'aws-sdk';
 import { v2 as cloudinary } from 'cloudinary';
 
 @Injectable()
 export class StorageService {
+  private readonly logger = new Logger(StorageService.name);
   private s3: AWS.S3;
   private cloudinaryConfigured = false;
 
@@ -17,7 +18,7 @@ export class StorageService {
 
     // Debug logging in constructor (only in non-production)
     if (process.env.NODE_ENV !== 'production') {
-      console.log('🔧 StorageService Constructor - Env Vars:', {
+      this.logger.debug('StorageService Constructor - Env Vars:', {
         endpoint,
         region,
         hasAccessKeyId: !!accessKeyId,
@@ -69,7 +70,7 @@ export class StorageService {
       const accessKeyId = this.configService.get('S3_ACCESS_KEY_ID');
       const secretAccessKey = this.configService.get('S3_SECRET_ACCESS_KEY');
       // Enhanced debug logging
-      console.log('🔍 Storage Config Check:', {
+      this.logger.debug('🔍 Storage Config Check:', {
         endpoint,
         bucket,
         region,
@@ -181,7 +182,7 @@ export class StorageService {
       const endpoint = this.configService.get('S3_ENDPOINT');
       const accessKeyId = this.configService.get('S3_ACCESS_KEY_ID');
       
-      console.error('S3 Upload Error:', {
+      this.logger.error('S3 Upload Error:', {
         code: error.code,
         message: error.message,
         statusCode: error.statusCode,

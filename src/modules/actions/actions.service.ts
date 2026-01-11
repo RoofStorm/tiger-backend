@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PostsService } from '../posts/posts.service';
@@ -13,6 +14,8 @@ import { getVietnamTime } from '../../common/utils/date.utils';
 
 @Injectable()
 export class ActionsService {
+  private readonly logger = new Logger(ActionsService.name);
+
   constructor(
     private prisma: PrismaService,
     private postsService: PostsService,
@@ -115,7 +118,7 @@ export class ActionsService {
 
       return action;
     } catch (error) {
-      console.error('Error in createAction:', error);
+      this.logger.error('Error in createAction:', error);
       throw error;
     }
   }

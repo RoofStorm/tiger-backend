@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PointsService } from '../points/points.service';
 import { LimitType } from '@prisma/client';
@@ -14,6 +14,8 @@ import { getWeekStartVietnam, getStartOfDayVietnam } from '../../common/utils/da
 
 @Injectable()
 export class UserLimitService {
+  private readonly logger = new Logger(UserLimitService.name);
+
   constructor(
     private prisma: PrismaService,
     private pointsService: PointsService,
@@ -96,7 +98,7 @@ export class UserLimitService {
       const canReceive = await this.canReceiveBonus(userId, limitType);
 
       if (!canReceive) {
-        console.log(
+        this.logger.debug(
           `🎁 ${limitType} bonus already awarded for user: ${userId}`,
         );
         return false;
@@ -127,13 +129,13 @@ export class UserLimitService {
       // Update limit count
       await this.updateLimitCount(userId, limitType);
 
-      console.log(
+      this.logger.debug(
         `✅ ${limitType} bonus awarded: ${userId} (+${points} points)`,
       );
 
       return true;
     } catch (error) {
-      console.error(`❌ Error awarding ${limitType} bonus:`, error);
+      this.logger.error(`❌ Error awarding ${limitType} bonus:`, error);
       return false;
     }
   }
@@ -167,7 +169,7 @@ export class UserLimitService {
         },
       });
     } catch (error) {
-      console.error(
+      this.logger.error(
         `❌ UserLimitService: Error updating ${limitType} count for user ${userId}:`,
         error,
       );

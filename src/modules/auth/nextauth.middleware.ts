@@ -9,7 +9,7 @@ export class NextAuthMiddleware implements NestMiddleware {
 
   async use(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log(
+      this.logger.debug(
         `🔍 NextAuth middleware processing: ${req.method} ${req.url}`,
       );
 
@@ -18,20 +18,20 @@ export class NextAuthMiddleware implements NestMiddleware {
 
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-        console.log(`🔍 Processing token: ${token.substring(0, 20)}...`);
+        this.logger.debug(`🔍 Processing token: ${token.substring(0, 20)}...`);
 
         try {
           // Decode JWT token to get user ID
           const decoded = jwt.decode(token) as any;
           if (!decoded || !decoded.sub) {
-            console.log(`❌ Invalid JWT token`);
+            this.logger.debug(`❌ Invalid JWT token`);
             req.user = null;
             next();
             return;
           }
 
           const userId = decoded.sub; // Extract userId from 'sub' claim
-          console.log(`🔍 Extracted user ID: ${userId}`);
+          this.logger.debug(`🔍 Extracted user ID: ${userId}`);
 
           // Verify user exists and is active
           const user = await this.prisma.user.findUnique({
@@ -45,29 +45,29 @@ export class NextAuthMiddleware implements NestMiddleware {
             },
           });
 
-          console.log(`🔍 User found:`, user);
+          this.logger.debug(`🔍 User found:`, user);
 
           if (user && user.status === 'ACTIVE') {
             // Add user to request object
             req.user = user;
-            console.log(`✅ User authenticated: ${user.email}`);
+            this.logger.debug(`✅ User authenticated: ${user.email}`);
           } else {
             // Set user to null if not found or inactive
             req.user = null;
-            console.log(`❌ User not found or inactive`);
+            this.logger.debug(`❌ User not found or inactive`);
           }
         } catch (error) {
-          console.error('❌ NextAuth middleware error:', error);
+          this.logger.error('❌ NextAuth middleware error:', error);
           req.user = null;
         }
       } else {
-        console.log(`❌ No valid auth header found`);
+        this.logger.debug(`❌ No valid auth header found`);
         req.user = null;
       }
 
       next();
     } catch (error) {
-      console.error('❌ NextAuth middleware fatal error:', error);
+      this.logger.error('❌ NextAuth middleware fatal error:', error);
       req.user = null;
       next();
     }

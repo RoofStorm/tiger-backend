@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PointsService } from '../points/points.service';
@@ -10,6 +11,8 @@ import { PostType } from '@prisma/client';
 
 @Injectable()
 export class PostsService {
+  private readonly logger = new Logger(PostsService.name);
+
   constructor(
     private prisma: PrismaService,
     private pointsService: PointsService,
@@ -98,7 +101,7 @@ export class PostsService {
         },
       };
     } catch (error) {
-      console.error('Error in findAll:', error);
+      this.logger.error('Error in findAll:', error);
       throw error;
     }
   }

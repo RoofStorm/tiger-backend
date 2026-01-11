@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PointsService } from '../points/points.service';
@@ -11,6 +12,8 @@ import { RedeemStatus } from '@prisma/client';
 
 @Injectable()
 export class RedeemService {
+  private readonly logger = new Logger(RedeemService.name);
+
   constructor(
     private prisma: PrismaService,
     private pointsService: PointsService,
@@ -29,12 +32,12 @@ export class RedeemService {
     }
 
     // Find the reward
-    console.log('🔍 Looking for reward with ID:', rewardId);
+    this.logger.debug('🔍 Looking for reward with ID:', rewardId);
     const reward = await this.prisma.reward.findUnique({
       where: { id: rewardId },
     });
 
-    console.log('🔍 Reward found:', reward ? { id: reward.id, name: reward.name, isActive: reward.isActive } : 'null');
+    this.logger.debug('🔍 Reward found:', reward ? { id: reward.id, name: reward.name, isActive: reward.isActive } : 'null');
 
     if (!reward) {
       // List available rewards for debugging
@@ -42,7 +45,7 @@ export class RedeemService {
         select: { id: true, name: true, isActive: true },
         take: 10,
       });
-      console.log('📋 Available rewards:', availableRewards);
+      this.logger.debug('📋 Available rewards:', availableRewards);
       throw new NotFoundException(
         `Reward not found with ID: ${rewardId}. Available rewards: ${availableRewards.map((r) => r.id).join(', ')}`,
       );
@@ -189,13 +192,13 @@ export class RedeemService {
 
   async getUserRedeems(userId: string, page = 1, limit = 20) {
     try {
-      console.log('🔍 RedeemService.getUserRedeems called');
-      console.log('🔍 User ID:', userId);
-      console.log('🔍 Page:', page, 'Limit:', limit);
+      this.logger.debug('🔍 RedeemService.getUserRedeems called');
+      this.logger.debug('🔍 User ID:', userId);
+      this.logger.debug('🔍 Page:', page, 'Limit:', limit);
 
       const skip = (page - 1) * limit;
 
-      console.log('🔍 Querying redeem requests...');
+      this.logger.debug('🔍 Querying redeem requests...');
       const [redeems, total] = await Promise.all([
         this.prisma.redeemRequest.findMany({
           where: { userId },
@@ -217,8 +220,8 @@ export class RedeemService {
         }),
       ]);
 
-      console.log('🔍 Found redeems:', redeems.length);
-      console.log('🔍 Total count:', total);
+      this.logger.debug('🔍 Found redeems:', redeems.length);
+      this.logger.debug('🔍 Total count:', total);
 
       return {
         redeems,
@@ -230,7 +233,7 @@ export class RedeemService {
         },
       };
     } catch (error) {
-      console.error('❌ Error in RedeemService.getUserRedeems:', error);
+      this.logger.error('❌ Error in RedeemService.getUserRedeems:', error);
       throw error;
     }
   }
@@ -386,7 +389,7 @@ export class RedeemService {
         },
       };
     } catch (error) {
-      console.error('getAllRedeems error:', error);
+      this.logger.error('getAllRedeems error:', error);
       throw error;
     }
   }

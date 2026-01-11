@@ -11,17 +11,17 @@ export class NextAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    console.log('🔍 NextAuthGuard.canActivate called');
-    console.log('🔍 Request URL:', request.url);
-    console.log('🔍 Request user:', user);
-    console.log('🔍 Authorization header:', request.headers.authorization);
+    this.logger.debug('🔍 NextAuthGuard.canActivate called');
+    this.logger.debug('🔍 Request URL:', request.url);
+    this.logger.debug('🔍 Request user:', user);
+    this.logger.debug('🔍 Authorization header:', request.headers.authorization);
 
     if (!user) {
-      console.log('❌ NextAuthGuard: User not found in request');
+      this.logger.debug('❌ NextAuthGuard: User not found in request');
       throw new UnauthorizedException('User not authenticated');
     }
 
-    console.log('✅ NextAuthGuard: User authenticated successfully');
+    this.logger.debug('✅ NextAuthGuard: User authenticated successfully');
     return true;
   }
 }

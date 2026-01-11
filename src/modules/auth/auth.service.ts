@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -18,6 +19,8 @@ import { POINTS } from '../../constants/points';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
@@ -132,14 +135,14 @@ export class AuthService {
     });
 
     // Auto-generate referral code for new user
-    console.log(`🔄 Auto-generating referral code for new user: ${user.id}`);
+    this.logger.debug(`🔄 Auto-generating referral code for new user: ${user.id}`);
     const newUserReferralCode =
       await this.referralService.generateReferralCode();
     user = await this.prisma.user.update({
       where: { id: user.id },
       data: { referralCode: newUserReferralCode },
     });
-    console.log(
+    this.logger.debug(
       `✅ Generated referral code for new user: ${newUserReferralCode}`,
     );
 
@@ -150,10 +153,10 @@ export class AuthService {
         referralCode,
       );
       if (!referralResult.success) {
-        console.log('⚠️ Referral processing failed:', referralResult.message);
+        this.logger.debug('⚠️ Referral processing failed:', referralResult.message);
         // Don't throw error, just log it - user registration should still succeed
       } else {
-        console.log('✅ Referral processed:', referralResult.message);
+        this.logger.debug('✅ Referral processed:', referralResult.message);
       }
     }
 
@@ -215,11 +218,11 @@ export class AuthService {
         );
         pointsAwarded = true;
         pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.FIRST_LOGIN_BONUS} điểm cho lần đăng nhập đầu tiên.`;
-        console.log(
+        this.logger.debug(
           `🎁 First login bonus awarded to ${user.username || user.email} (+${POINTS.FIRST_LOGIN_BONUS} points)`,
         );
       } catch (error) {
-        console.error(
+        this.logger.error(
           `❌ Error awarding first login bonus to ${user.username || user.email}:`,
           error,
         );
@@ -230,7 +233,7 @@ export class AuthService {
       const hasFirstLoginBonusToday = await this.hasReceivedFirstLoginBonusToday(user.id);
       
       if (hasFirstLoginBonusToday) {
-        console.log(
+        this.logger.debug(
           `ℹ️ User ${user.username || user.email} already received First login bonus today, skipping Daily login bonus`,
         );
       } else {
@@ -246,18 +249,18 @@ export class AuthService {
           );
           pointsAwarded = true; // Only set to true if award was successful
           pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`;
-          console.log(
+          this.logger.debug(
             `🎁 Daily login bonus awarded to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
           );
         } catch (error) {
           // Silently fail if daily bonus already awarded or limit reached
           // This prevents login failure due to bonus issues
           if (error instanceof BadRequestException) {
-            console.log(
+            this.logger.debug(
               `ℹ️ Daily login bonus already awarded today for ${user.username || user.email}`,
             );
           } else {
-            console.error(
+            this.logger.error(
               `❌ Error awarding daily login bonus to ${user.username || user.email}:`,
               error,
             );
@@ -420,7 +423,7 @@ export class AuthService {
 
       // Auto-generate referral code if user doesn't have one
       if (!user.referralCode) {
-        console.log(
+        this.logger.debug(
           `🔄 Auto-generating referral code for existing ${provider} user: ${user.id}`,
         );
         const newUserReferralCode =
@@ -429,7 +432,7 @@ export class AuthService {
           where: { id: user.id },
           data: { referralCode: newUserReferralCode },
         });
-        console.log(
+        this.logger.debug(
           `✅ Generated referral code for existing ${provider} user: ${newUserReferralCode}`,
         );
       }
@@ -447,11 +450,11 @@ export class AuthService {
           );
           pointsAwarded = true;
           isFirstLoginBonus = true;
-          console.log(
+          this.logger.debug(
             `🎁 First login bonus awarded to ${user.email} (+${POINTS.FIRST_LOGIN_BONUS} points)`,
           );
         } catch (error) {
-          console.error(
+          this.logger.error(
             `❌ Error awarding first login bonus to ${user.email}:`,
             error,
           );
@@ -462,7 +465,7 @@ export class AuthService {
         const hasFirstLoginBonusToday = await this.hasReceivedFirstLoginBonusToday(user.id);
         
         if (hasFirstLoginBonusToday) {
-          console.log(
+          this.logger.debug(
             `ℹ️ User ${user.email} already received First login bonus today, skipping Daily login bonus`,
           );
         } else {
@@ -477,17 +480,17 @@ export class AuthService {
               'Daily login bonus',
             );
             pointsAwarded = true; // Only set to true if award was successful
-            console.log(
+            this.logger.debug(
               `🎁 Daily login bonus awarded to ${user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
             );
           } catch (error) {
             // Silently fail if daily bonus already awarded or limit reached
             if (error instanceof BadRequestException) {
-              console.log(
+              this.logger.debug(
                 `ℹ️ Daily login bonus already awarded today for ${user.email}`,
               );
             } else {
-              console.error(
+              this.logger.error(
                 `❌ Error awarding daily login bonus to ${user.email}:`,
                 error,
               );
@@ -516,7 +519,7 @@ export class AuthService {
       });
 
       // Auto-generate referral code for new OAuth user
-      console.log(
+      this.logger.debug(
         `🔄 Auto-generating referral code for new ${provider} user: ${user.id}`,
       );
       const newUserReferralCode =
@@ -525,7 +528,7 @@ export class AuthService {
         where: { id: user.id },
         data: { referralCode: newUserReferralCode },
       });
-      console.log(
+      this.logger.debug(
         `✅ Generated referral code for new ${provider} user: ${newUserReferralCode}`,
       );
 
@@ -540,11 +543,11 @@ export class AuthService {
         );
         pointsAwarded = true;
         isFirstLoginBonus = true;
-        console.log(
+        this.logger.debug(
           `🎁 First login bonus awarded to new ${provider} user ${user.email} (+${POINTS.FIRST_LOGIN_BONUS} points)`,
         );
       } catch (error) {
-        console.error(
+        this.logger.error(
           `❌ Error awarding first login bonus to new ${provider} user ${user.email}:`,
           error,
         );
@@ -650,7 +653,7 @@ export class AuthService {
 
       // Auto-generate referral code if user doesn't have one
       if (!user.referralCode) {
-        console.log(
+        this.logger.debug(
           `🔄 Auto-generating referral code for existing ${provider} user: ${user.id}`,
         );
         const newUserReferralCode =
@@ -659,7 +662,7 @@ export class AuthService {
           where: { id: user.id },
           data: { referralCode: newUserReferralCode },
         });
-        console.log(
+        this.logger.debug(
           `✅ Generated referral code for existing ${provider} user: ${newUserReferralCode}`,
         );
       }
@@ -678,7 +681,7 @@ export class AuthService {
       });
 
       // Auto-generate referral code for new OAuth user
-      console.log(
+      this.logger.debug(
         `🔄 Auto-generating referral code for new ${provider} user: ${user.id}`,
       );
       const newUserReferralCode =
@@ -687,7 +690,7 @@ export class AuthService {
         where: { id: user.id },
         data: { referralCode: newUserReferralCode },
       });
-      console.log(
+      this.logger.debug(
         `✅ Generated referral code for new ${provider} user: ${newUserReferralCode}`,
       );
     }
@@ -774,11 +777,11 @@ export class AuthService {
         );
         pointsAwarded = true;
         pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.FIRST_LOGIN_BONUS} điểm cho lần đăng nhập đầu tiên.`;
-        console.log(
+        this.logger.debug(
           `🎁 First login bonus awarded via session to ${user.username || user.email} (+${POINTS.FIRST_LOGIN_BONUS} points)`,
         );
       } catch (error) {
-        console.error(
+        this.logger.error(
           `❌ Error awarding first login bonus via session to ${user.username || user.email}:`,
           error,
         );
@@ -789,7 +792,7 @@ export class AuthService {
       const hasFirstLoginBonusToday = await this.hasReceivedFirstLoginBonusToday(user.id);
       
       if (hasFirstLoginBonusToday) {
-        console.log(
+        this.logger.debug(
           `ℹ️ User ${user.username || user.email} already received First login bonus today, skipping Daily login bonus`,
         );
       } else {
@@ -807,18 +810,18 @@ export class AuthService {
           );
           pointsAwarded = true; // Only set to true if award was successful
           pointsMessage = `Chúc mừng! Bạn đã nhận được ${POINTS.DAILY_LOGIN_BONUS} điểm đăng nhập hôm nay.`;
-          console.log(
+          this.logger.debug(
             `🎁 Daily login bonus awarded via session to ${user.username || user.email} (+${POINTS.DAILY_LOGIN_BONUS} points)`,
           );
         } catch (error) {
           // Silently fail if daily bonus already awarded or limit reached
           // This prevents session check failure due to bonus issues
           if (error instanceof BadRequestException) {
-            console.log(
+            this.logger.debug(
               `ℹ️ Daily login bonus already awarded today for ${user.username || user.email}`,
             );
           } else {
-            console.error(
+            this.logger.error(
               `❌ Error awarding daily login bonus via session to ${user.username || user.email}:`,
               error,
             );

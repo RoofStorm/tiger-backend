@@ -5,6 +5,7 @@ import {
   Query,
   UseGuards,
   Request,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,8 @@ import { ReferralService } from '../referral/referral.service';
 @UseGuards(NextAuthGuard)
 @ApiBearerAuth()
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly referralService: ReferralService,
@@ -70,7 +73,7 @@ export class UsersController {
         },
       };
     } catch (error) {
-      console.error('Error in getReferralCode:', error);
+      this.logger.error('Error in getReferralCode:', error);
       return {
         success: false,
         error: error.message,
@@ -103,7 +106,7 @@ export class UsersController {
         data: stats,
       };
     } catch (error) {
-      console.error('Error in getReferralStats:', error);
+      this.logger.error('Error in getReferralStats:', error);
       return {
         success: false,
         error: error.message,

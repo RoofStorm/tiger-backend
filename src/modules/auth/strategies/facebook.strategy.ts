@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-facebook';
 import { ConfigService } from '@nestjs/config';
@@ -6,6 +6,8 @@ import { AuthService } from '../auth.service';
 
 @Injectable()
 export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
+  private readonly logger = new Logger(FacebookStrategy.name);
+
   constructor(
     private configService: ConfigService,
     private authService: AuthService,
@@ -36,7 +38,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       if (!email) {
         // Tạo email giả từ Facebook ID để đảm bảo unique
         email = `fb_${id}@facebook.temporary`;
-        console.log(
+        this.logger.debug(
           `⚠️ Facebook user ${id} không có email, tạo email tạm: ${email}`,
         );
       }
@@ -76,7 +78,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       // Passport cần user object
       done(null, userWithTokens);
     } catch (error) {
-      console.error('❌ Facebook OAuth validation error:', error);
+      this.logger.error('❌ Facebook OAuth validation error:', error);
       done(error, null);
     }
   }

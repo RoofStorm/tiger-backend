@@ -63,7 +63,7 @@ export class AnalyticsService {
 
     // Debug: Log first event to verify userId is set correctly
     if (queuedEvents.length > 0) {
-      console.log(`[Analytics] First event: userId=${queuedEvents[0].userId}, isAnonymous=${queuedEvents[0].isAnonymous}, page=${queuedEvents[0].page}, action=${queuedEvents[0].action}`);
+      this.logger.debug(`[Analytics] First event: userId=${queuedEvents[0].userId}, isAnonymous=${queuedEvents[0].isAnonymous}, page=${queuedEvents[0].page}, action=${queuedEvents[0].action}`);
     }
 
     // Enqueue events (non-blocking, returns immediately)
@@ -204,7 +204,7 @@ export class AnalyticsService {
       uniqueAnonymousUsers = anonymousSessionsResult.length;
     } catch (error) {
       // If query fails, fallback to 0 (don't break the API)
-      console.error('Error getting unique anonymous users from database:', error);
+      this.logger.error('Error getting unique anonymous users from database:', error);
     }
 
     return {
