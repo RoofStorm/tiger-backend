@@ -106,20 +106,62 @@ export class PostsService {
     }
   }
 
-  private encodeCursor(createdAt: Date, id: string): string {
-    return Buffer.from(`${createdAt.toISOString()}|${id}`).toString('base64');
+  private encodeCursor(params: { likeCount: number; createdAt: Date; id: string }): string {
+    const { likeCount, createdAt, id } = params;
+    return Buffer.from(
+      `${likeCount}|${createdAt.toISOString()}|${id}`,
+    ).toString('base64');
   }
 
-  private decodeCursor(cursor: string): { createdAt: Date; id: string } | null {
+  private decodeCursor(
+    cursor: string,
+  ): { likeCount?: number; createdAt?: Date; id: string } | null {
     if (!cursor) return null;
     try {
       const decoded = Buffer.from(cursor, 'base64').toString('ascii');
-      const [dateStr, id] = decoded.split('|');
-      if (!dateStr || !id) return null;
-      return { createdAt: new Date(dateStr), id };
+      const parts = decoded.split('|');
+      // Current format: likeCount|createdAt|id
+      if (parts.length === 3) {
+        const [likeCountStr, dateStr, id] = parts;
+        const likeCount = Number(likeCountStr);
+        if (!Number.isFinite(likeCount) || !dateStr || !id) return null;
+        return { likeCount, createdAt: new Date(dateStr), id };
+      }
+      // Legacy format: createdAt|id
+      if (parts.length === 2) {
+        const [dateStr, id] = parts;
+        if (!dateStr || !id) return null;
+        return { createdAt: new Date(dateStr), id };
+      }
+      return null;
     } catch (e) {
       return null;
     }
+  }
+
+  private async resolveFeedCursor(
+    cursor?: string,
+  ): Promise<{ likeCount: number; createdAt: Date; id: string } | null> {
+    const decoded = this.decodeCursor(cursor);
+    if (!decoded) return null;
+
+    // New cursor already has everything we need
+    if (decoded.likeCount !== undefined && decoded.createdAt && decoded.id) {
+      return {
+        likeCount: decoded.likeCount,
+        createdAt: decoded.createdAt,
+        id: decoded.id,
+      };
+    }
+
+    // Legacy cursor: lookup likeCount (and createdAt for consistency)
+    if (!decoded.id) return null;
+    const post = await this.prisma.post.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, createdAt: true, likeCount: true },
+    });
+    if (!post) return null;
+    return { likeCount: post.likeCount ?? 0, createdAt: post.createdAt, id: post.id };
   }
 
   async getFeed(
@@ -139,28 +181,49 @@ export class PostsService {
       type,
       highlighted = true,
     } = params;
-    const decodedCursor = this.decodeCursor(cursor);
+    const resolvedCursor = await this.resolveFeedCursor(cursor);
 
     const where: any = {};
     if (type) where.type = type;
     if (highlighted !== undefined) where.isHighlighted = highlighted;
 
-    if (decodedCursor) {
-      const { createdAt, id } = decodedCursor;
+    if (resolvedCursor) {
+      const { likeCount, createdAt, id } = resolvedCursor;
       if (direction === 'next') {
-        // Fetch older posts: (createdAt < current) OR (createdAt == current AND id < currentId)
+        // Fetch "older" in (likeCount desc, createdAt desc, id desc) ordering:
+        // (likeCount < cur) OR
+        // (likeCount == cur AND createdAt < cur) OR
+        // (likeCount == cur AND createdAt == cur AND id < cur)
         where.OR = [
-          { createdAt: { lt: createdAt } },
           {
-            AND: [{ createdAt: { equals: createdAt } }, { id: { lt: id } }],
+            likeCount: { lt: likeCount },
+          },
+          {
+            AND: [{ likeCount: { equals: likeCount } }, { createdAt: { lt: createdAt } }],
+          },
+          {
+            AND: [
+              { likeCount: { equals: likeCount } },
+              { createdAt: { equals: createdAt } },
+              { id: { lt: id } },
+            ],
           },
         ];
       } else {
-        // Fetch newer posts: (createdAt > current) OR (createdAt == current AND id > currentId)
+        // Fetch "newer" in (likeCount desc, createdAt desc, id desc) ordering
         where.OR = [
-          { createdAt: { gt: createdAt } },
           {
-            AND: [{ createdAt: { equals: createdAt } }, { id: { gt: id } }],
+            likeCount: { gt: likeCount },
+          },
+          {
+            AND: [{ likeCount: { equals: likeCount } }, { createdAt: { gt: createdAt } }],
+          },
+          {
+            AND: [
+              { likeCount: { equals: likeCount } },
+              { createdAt: { equals: createdAt } },
+              { id: { gt: id } },
+            ],
           },
         ];
       }
@@ -178,7 +241,7 @@ export class PostsService {
           },
         },
       },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ likeCount: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
     });
 
     const hasMore = posts.length > limit;
@@ -224,16 +287,22 @@ export class PostsService {
     const nextCursor =
       postsWithCounts.length > 0 && (direction === 'next' ? hasMore : true)
         ? this.encodeCursor(
-            postsWithCounts[postsWithCounts.length - 1].createdAt,
-            postsWithCounts[postsWithCounts.length - 1].id,
+            {
+              likeCount: postsWithCounts[postsWithCounts.length - 1].likeCount ?? 0,
+              createdAt: postsWithCounts[postsWithCounts.length - 1].createdAt,
+              id: postsWithCounts[postsWithCounts.length - 1].id,
+            },
           )
         : null;
 
     const prevCursor =
       postsWithCounts.length > 0 && (direction === 'prev' ? hasMore : true)
         ? this.encodeCursor(
-            postsWithCounts[0].createdAt,
-            postsWithCounts[0].id,
+            {
+              likeCount: postsWithCounts[0].likeCount ?? 0,
+              createdAt: postsWithCounts[0].createdAt,
+              id: postsWithCounts[0].id,
+            },
           )
         : null;
 
