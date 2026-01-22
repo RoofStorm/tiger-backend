@@ -15,11 +15,73 @@ import * as ExcelJS from 'exceljs';
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
+  private readonly SESSION_REDIS_KEY_PREFIX = 'session:';
+  private readonly SESSION_REDIS_TTL = 60 * 30; // 30 minutes
+  private readonly SESSION_TIMESTAMPS_KEY = 'session_timestamps';
+  
   constructor(
     private prisma: PrismaService,
     private queueService: AnalyticsQueueService,
     private redisService: RedisService,
   ) {}
+
+  /**
+   * Track sessionId in Redis with TTL
+   * If sessionId doesn't exist, mark as new visit and increment counter
+   * If sessionId exists, just refresh TTL
+   */
+  private async trackSessionId(sessionId: string): Promise<void> {
+    try {
+      const redisKey = `${this.SESSION_REDIS_KEY_PREFIX}${sessionId}`;
+      const exists = await this.redisService.exists(redisKey);
+
+      if (!exists) {
+        // New session - mark as active with TTL and store timestamp
+        const timestamp = Date.now().toString();
+        await this.redisService.set(redisKey, timestamp, this.SESSION_REDIS_TTL);
+        
+        // Store in sorted set for time-based queries (score = timestamp)
+        const redis = this.redisService.getClient();
+        await redis.zadd(this.SESSION_TIMESTAMPS_KEY, Date.now(), sessionId);
+        
+        this.logger.debug(`Tracked new session: ${sessionId}`);
+      } else {
+        // Existing session - refresh TTL to keep session active
+        const timestamp = Date.now().toString();
+        await this.redisService.set(redisKey, timestamp, this.SESSION_REDIS_TTL);
+      }
+    } catch (error) {
+      // Don't throw - session tracking is non-critical
+      this.logger.error(`Error tracking sessionId ${sessionId}:`, error);
+    }
+  }
+
+  /**
+   * Get unique visits count from Redis based on sessionId tracking
+   * Counts sessions that were active within the time range
+   */
+  private async getUniqueVisitsFromRedis(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<number> {
+    try {
+      const startTime = startDate.getTime();
+      const endTime = endDate.getTime();
+      
+      // Count sessions in sorted set within time range
+      const count = await this.redisService.countInTimeRange(
+        this.SESSION_TIMESTAMPS_KEY,
+        startTime,
+        endTime,
+      );
+      
+      return count;
+    } catch (error) {
+      // If Redis fails, return 0 (don't break the API)
+      this.logger.warn('Error getting unique visits from Redis:', error);
+      return 0;
+    }
+  }
 
   /**
    * Ingest analytics events (high-throughput, async)
@@ -67,6 +129,12 @@ export class AnalyticsService {
     if (queuedEvents.length > 0) {
       this.logger.debug(`[Analytics] First event: userId=${queuedEvents[0].userId}, isAnonymous=${queuedEvents[0].isAnonymous}, page=${queuedEvents[0].page}, action=${queuedEvents[0].action}`);
     }
+
+    // Track sessionId in Redis with TTL (non-blocking, don't fail if Redis is down)
+    this.trackSessionId(sessionId.trim()).catch((error) => {
+      // Don't block request if session tracking fails
+      this.logger.warn(`Failed to track sessionId ${sessionId}:`, error);
+    });
 
     // Enqueue events (non-blocking, returns immediately)
     this.queueService.enqueue(queuedEvents);
@@ -209,6 +277,10 @@ export class AnalyticsService {
       this.logger.error('Error getting unique anonymous users from database:', error);
     }
 
+    // Get unique visits from Redis (based on sessionId tracking with TTL)
+    // This represents actual unique visits, not just unique sessionIds from database
+    const uniqueVisits = await this.getUniqueVisitsFromRedis(startDate, endDate);
+
     return {
       page: page || 'all',
       zone: zone || 'all',
@@ -223,6 +295,7 @@ export class AnalyticsService {
       uniqueSessions: uniqueSessionsResult.length,
       uniqueUsers: uniqueUsersResult.length,
       uniqueAnonymousUsers,
+      uniqueVisits, // New metric: unique visits based on sessionId tracking with TTL
     };
   }
 
@@ -529,6 +602,10 @@ export class AnalyticsService {
     summarySheet.addRow({
       metric: 'Unique Anonymous Users',
       value: summary.uniqueAnonymousUsers,
+    });
+    summarySheet.addRow({
+      metric: 'Unique Visits (SessionId Tracking)',
+      value: summary.uniqueVisits || 0,
     });
 
     // Sheet 2: Analysis

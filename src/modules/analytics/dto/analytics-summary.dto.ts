@@ -75,5 +75,11 @@ export class AnalyticsSummaryResponseDto {
 
   @ApiProperty({ example: 350, description: 'Unique anonymous users' })
   uniqueAnonymousUsers: number;
+
+  @ApiProperty({ 
+    example: 200, 
+    description: 'Unique visits based on sessionId tracking with TTL (30 minutes). Represents actual unique visits, not just unique sessionIds from database.' 
+  })
+  uniqueVisits: number;
 }
 
