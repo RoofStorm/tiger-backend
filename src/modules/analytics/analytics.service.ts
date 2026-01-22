@@ -260,9 +260,11 @@ export class AnalyticsService {
     const avgDuration = totalViews > 0 ? totalDurations / totalViews : 0;
 
     // Get unique anonymous users from database (page level only, ignore zone)
-    // Query from analytics_events where isAnonymous = true and filter by page
+    // Count sessions that ONLY have anonymous events (no logged-in events)
+    // A session is considered anonymous if it has NO events with userId != null
     let uniqueAnonymousUsers = 0;
     try {
+      // Get all sessions that have at least one anonymous event
       const anonymousSessionsResult = await this.prisma.analyticsEvent.groupBy({
         by: ['sessionId'],
         where: {
@@ -271,7 +273,32 @@ export class AnalyticsService {
           createdAt: timeFilter,
         },
       });
-      uniqueAnonymousUsers = anonymousSessionsResult.length;
+
+      // Filter to only sessions that have NO logged-in events
+      // A session is truly anonymous if it never had a userId in any event
+      const anonymousSessionIds = anonymousSessionsResult.map((r) => r.sessionId);
+      
+      if (anonymousSessionIds.length > 0) {
+        // Check which of these sessions have any logged-in events
+        const loggedInSessionsResult = await this.prisma.analyticsEvent.groupBy({
+          by: ['sessionId'],
+          where: {
+            ...userWhere,
+            sessionId: { in: anonymousSessionIds },
+            userId: { not: null },
+            createdAt: timeFilter,
+          },
+        });
+
+        const loggedInSessionIds = new Set(
+          loggedInSessionsResult.map((r) => r.sessionId),
+        );
+
+        // Count only sessions that are purely anonymous (no logged-in events)
+        uniqueAnonymousUsers = anonymousSessionIds.filter(
+          (sessionId) => !loggedInSessionIds.has(sessionId),
+        ).length;
+      }
     } catch (error) {
       // If query fails, fallback to 0 (don't break the API)
       this.logger.error('Error getting unique anonymous users from database:', error);

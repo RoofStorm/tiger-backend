@@ -36,7 +36,7 @@ export const getMulterMemoryConfig = () => {
       } else {
         cb(
           new Error(
-            `Invalid file type. Only image files are allowed. Received: ${file.mimetype}`,
+            `Loại file không hợp lệ. Chỉ chấp nhận file ảnh. Loại file nhận được: ${file.mimetype}`,
           ),
           false,
         );

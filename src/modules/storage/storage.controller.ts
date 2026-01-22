@@ -57,7 +57,7 @@ export class StorageController {
     // Validate file exists
     if (!file) {
       this.logger.error('❌ No file provided in upload request');
-      throw new BadRequestException('No file provided');
+      throw new BadRequestException('Không có file được cung cấp');
     }
 
     // Get max file size from config (in bytes)
@@ -73,7 +73,7 @@ export class StorageController {
         `❌ File too large - File: ${file.originalname}, Size: ${fileSizeMB}MB, Max allowed: ${maxFileSizeMB}MB`,
       );
       throw new BadRequestException(
-        `File size exceeds the maximum allowed size of ${maxFileSizeMB}MB. Your file is ${fileSizeMB}MB.`,
+        `Kích thước file vượt quá giới hạn cho phép là ${maxFileSizeMB}MB. File của bạn có kích thước ${fileSizeMB}MB.`,
       );
     }
 
@@ -92,7 +92,7 @@ export class StorageController {
         `❌ Invalid file type - File: ${file.originalname}, MIME: ${file.mimetype}`,
       );
       throw new BadRequestException(
-        `Invalid file type. Only image files are allowed. Received: ${file.mimetype}`,
+        `Loại file không hợp lệ. Chỉ chấp nhận file ảnh. Loại file nhận được: ${file.mimetype}`,
       );
     }
 
@@ -120,7 +120,7 @@ export class StorageController {
 
       // Re-throw with more context
       throw new BadRequestException(
-        `Upload failed: ${error.message || 'Unknown error'}`,
+        `Tải file lên thất bại: ${error.message || 'Lỗi không xác định'}`,
       );
     }
   }
@@ -142,7 +142,7 @@ export class StorageController {
 
     if (!file) {
       this.logger.error('❌ No file provided in Cloudinary upload request');
-      throw new BadRequestException('No file provided');
+      throw new BadRequestException('Không có file được cung cấp');
     }
 
     // Get max file size from config (in bytes)
@@ -158,7 +158,7 @@ export class StorageController {
         `❌ File too large - File: ${file.originalname}, Size: ${fileSizeMB}MB, Max allowed: ${maxFileSizeMB}MB`,
       );
       throw new BadRequestException(
-        `File size exceeds the maximum allowed size of ${maxFileSizeMB}MB. Your file is ${fileSizeMB}MB.`,
+        `Kích thước file vượt quá giới hạn cho phép là ${maxFileSizeMB}MB. File của bạn có kích thước ${fileSizeMB}MB.`,
       );
     }
 
@@ -177,7 +177,7 @@ export class StorageController {
         `❌ Invalid file type - File: ${file.originalname}, MIME: ${file.mimetype}`,
       );
       throw new BadRequestException(
-        `Invalid file type. Only image files are allowed. Received: ${file.mimetype}`,
+        `Loại file không hợp lệ. Chỉ chấp nhận file ảnh. Loại file nhận được: ${file.mimetype}`,
       );
     }
 
@@ -203,7 +203,7 @@ export class StorageController {
       );
 
       throw new BadRequestException(
-        `Cloudinary upload failed: ${error.message || 'Unknown error'}`,
+        `Tải file lên Cloudinary thất bại: ${error.message || 'Lỗi không xác định'}`,
       );
     }
   }

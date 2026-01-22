@@ -14,6 +14,7 @@ import { ValidationPipe, LogLevel } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import helmet from 'helmet';
 import * as compression from 'compression';
 import * as cookieParser from 'cookie-parser';
@@ -67,6 +68,9 @@ async function bootstrap() {
 
   // Global response interceptor
   app.useGlobalInterceptors(new ResponseInterceptor());
+
+  // Global exception filter (handles Multer errors and other exceptions)
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Enable graceful shutdown hooks
   app.enableShutdownHooks();
