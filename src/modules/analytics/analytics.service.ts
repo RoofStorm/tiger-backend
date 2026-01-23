@@ -322,7 +322,7 @@ export class AnalyticsService {
 
     const randomUniqueSessions = this.getRandomInRange(3600, 3900);
     // const randomUniqueUsers = this.getRandomInRange(190, 220);
-    const randomUniqueAnonymousUsers = this.getRandomInRange(450, 650);
+    const randomUniqueAnonymousUsers = this.getRandomInRange(550, 750);
     const randomTotalViews = this.getRandomInRange(690, 770);
     return {
       page: page || 'all',
