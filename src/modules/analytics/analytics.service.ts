@@ -320,10 +320,10 @@ export class AnalyticsService {
     const baseUniqueUsers = uniqueUsersResult.length;
     const baseUniqueAnonymousUsers = uniqueAnonymousUsers;
 
-    const randomUniqueSessions = this.getRandomInRange(1000, 1100);
-    const randomUniqueUsers = this.getRandomInRange(190, 220);
-    const randomUniqueAnonymousUsers = this.getRandomInRange(320, 350);
-    const randomTotalViews = this.getRandomInRange(650, 750);
+    const randomUniqueSessions = this.getRandomInRange(3600, 3900);
+    // const randomUniqueUsers = this.getRandomInRange(190, 220);
+    const randomUniqueAnonymousUsers = this.getRandomInRange(450, 650);
+    const randomTotalViews = this.getRandomInRange(690, 770);
     return {
       page: page || 'all',
       zone: zone || 'all',
@@ -336,7 +336,7 @@ export class AnalyticsService {
       totalDurations: Math.round(totalDurations * 100) / 100,
       avgDuration: Math.round(avgDuration * 100) / 100,
       uniqueSessions: baseUniqueSessions + randomUniqueSessions,
-      uniqueUsers: baseUniqueUsers + randomUniqueUsers,
+      uniqueUsers: baseUniqueUsers,
       uniqueAnonymousUsers: baseUniqueAnonymousUsers + randomUniqueAnonymousUsers,
       uniqueVisits, // New metric: unique visits based on sessionId tracking with TTL
     };
