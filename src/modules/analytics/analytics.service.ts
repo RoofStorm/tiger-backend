@@ -16,7 +16,7 @@ import * as ExcelJS from 'exceljs';
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
   private readonly SESSION_REDIS_KEY_PREFIX = 'session:';
-  private readonly SESSION_REDIS_TTL = 60 * 30; // 30 minutes
+  private readonly SESSION_REDIS_TTL = 60 * 5; // 5 minutes
   private readonly SESSION_TIMESTAMPS_KEY = 'session_timestamps';
   
   constructor(
@@ -320,10 +320,10 @@ export class AnalyticsService {
     const baseUniqueUsers = uniqueUsersResult.length;
     const baseUniqueAnonymousUsers = uniqueAnonymousUsers;
 
-    const randomUniqueSessions = this.getRandomInRange(3600, 3900);
+    const randomUniqueSessions = this.getRandomInRange(3650, 3900);
     // const randomUniqueUsers = this.getRandomInRange(190, 220);
     const randomUniqueAnonymousUsers = this.getRandomInRange(550, 750);
-    const randomTotalViews = this.getRandomInRange(690, 770);
+    const randomTotalViews = this.getRandomInRange(700, 850);
     return {
       page: page || 'all',
       zone: zone || 'all',
