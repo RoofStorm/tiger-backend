@@ -637,6 +637,76 @@ export class AdminService {
     };
   }
 
+  async setPostLikeCountBase(
+    postId: string,
+    userId: string,
+    payload: { likeCountManualBase?: number; clearOverride?: boolean },
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user || user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can set post like count base');
+    }
+
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+    });
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    if (payload.clearOverride) {
+      const realLikeCount = await this.prisma.userPostAction.count({
+        where: { postId, type: 'LIKE' },
+      });
+      const updated = await this.prisma.post.update({
+        where: { id: postId },
+        data: {
+          likeCountManualBase: 0,
+          likeCount: realLikeCount,
+        },
+      });
+      return {
+        message: 'Like count base cleared; count = real likes only',
+        post: updated,
+      };
+    }
+
+    const base =
+      typeof payload.likeCountManualBase === 'number' &&
+      payload.likeCountManualBase >= 0
+        ? payload.likeCountManualBase
+        : undefined;
+    if (base === undefined) {
+      throw new ForbiddenException(
+        'Provide likeCountManualBase (number >= 0) or clearOverride: true',
+      );
+    }
+
+    const realLikeCount = await this.prisma.userPostAction.count({
+      where: { postId, type: 'LIKE' },
+    });
+
+    const updated = await this.prisma.post.update({
+      where: { id: postId },
+      data: {
+        likeCountManualBase: base,
+        likeCount: realLikeCount + base,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
+    });
+
+    return {
+      message: 'Like count base set; displayed count = real likes + base',
+      post: updated,
+    };
+  }
+
   async exportRedeemsToExcel(
     adminId: string,
     res: Response,

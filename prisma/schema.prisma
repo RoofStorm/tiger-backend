@@ -56,13 +56,14 @@ model Notification {
 }
 
 model Post {
-  id              String               @id @default(uuid())
-  userId          String
-  type            PostType
-  caption         String?
-  url             String?
-  likeCount       Int                  @default(0)
-  shareCount      Int                  @default(0)
+  id                   String               @id @default(uuid())
+  userId               String
+  type                 PostType
+  caption              String?
+  url                  String?
+  likeCount            Int                  @default(0)
+  likeCountManualBase  Int                  @default(0)
+  shareCount           Int                  @default(0)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   isHighlighted   Boolean              @default(false)

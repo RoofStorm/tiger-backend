@@ -464,44 +464,26 @@ export class PostsService {
   }
 
   async recalculateAllCounts(postId: string) {
-    // First, let's check all actions for this post to debug
-    const allActions = await this.prisma.userPostAction.findMany({
-      where: {
-        postId: postId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    // Count actual likes and shares from UserPostAction table
-    const [likeCount, shareCount] = await Promise.all([
-      this.prisma.userPostAction.count({
-        where: {
-          postId: postId,
-          type: 'LIKE',
-        },
+    const [post, likeCount, shareCount] = await Promise.all([
+      this.prisma.post.findUnique({
+        where: { id: postId },
+        select: { likeCountManualBase: true },
       }),
       this.prisma.userPostAction.count({
-        where: {
-          postId: postId,
-          type: 'SHARE',
-        },
+        where: { postId, type: 'LIKE' },
+      }),
+      this.prisma.userPostAction.count({
+        where: { postId, type: 'SHARE' },
       }),
     ]);
 
-    // Update post with accurate counts
+    const base = post?.likeCountManualBase ?? 0;
+
     return this.prisma.post.update({
       where: { id: postId },
       data: {
-        likeCount: likeCount,
-        shareCount: shareCount,
-        // commentCount can be updated separately when comments are implemented
+        likeCount: likeCount + base,
+        shareCount,
       },
     });
   }

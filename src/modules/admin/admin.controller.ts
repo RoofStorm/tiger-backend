@@ -232,6 +232,22 @@ export class AdminController {
     return this.adminService.unhighlightPost(postId, req.user.id);
   }
 
+  @Patch('posts/:id/like-count-base')
+  @ApiOperation({
+    summary: 'Set like count base (Admin only)',
+    description:
+      'likeCount = real likes + likeCountManualBase. Set likeCountManualBase (e.g. 20) or clearOverride: true to reset.',
+  })
+  @ApiResponse({ status: 200, description: 'Post like count base updated' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async setPostLikeCountBase(
+    @Param('id') postId: string,
+    @Body() body: { likeCountManualBase?: number; clearOverride?: boolean },
+    @Request() req,
+  ) {
+    return this.adminService.setPostLikeCountBase(postId, req.user.id, body);
+  }
+
   @Get('redeems')
   @ApiOperation({ summary: 'Get all redeem requests (Admin only)' })
   @ApiResponse({
