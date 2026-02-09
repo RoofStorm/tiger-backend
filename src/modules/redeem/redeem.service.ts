@@ -21,6 +21,8 @@ export class RedeemService {
 
   async createRedeem(createRedeemDto: CreateRedeemDto, userId: string) {
     const { rewardId, receiverPhone, receiverEmail } = createRedeemDto;
+    const receiverPhoneValue = receiverPhone?.trim() ?? '';
+    const receiverEmailValue = receiverEmail?.trim() ?? '';
 
     // Get user current points
     const user = await this.prisma.user.findUnique({
@@ -80,8 +82,8 @@ export class RedeemService {
             data: {
               userId,
               rewardId,
-              receiverPhone,
-              receiverEmail,
+              receiverPhone: receiverPhoneValue,
+              receiverEmail: receiverEmailValue,
               pointsUsed: 0,
               status: RedeemStatus.PENDING,
             },
@@ -130,8 +132,8 @@ export class RedeemService {
           data: {
             userId,
             rewardId,
-            receiverPhone,
-            receiverEmail,
+            receiverPhone: receiverPhoneValue,
+            receiverEmail: receiverEmailValue,
             pointsUsed: 0,
             status: RedeemStatus.PENDING,
           },
@@ -171,8 +173,8 @@ export class RedeemService {
       data: {
         userId,
         rewardId,
-        receiverPhone,
-        receiverEmail,
+        receiverPhone: receiverPhoneValue,
+        receiverEmail: receiverEmailValue,
         pointsUsed: costPoints,
         status: RedeemStatus.PENDING,
       },
