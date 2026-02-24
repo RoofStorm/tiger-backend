@@ -1018,6 +1018,11 @@
                 {
                   "key": "limit",
                   "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
                 }
               ]
             }

@@ -325,6 +325,7 @@ export class AdminService {
     adminId: string,
     page = 1,
     limit = 20,
+    search?: string,
     isHighlighted?: boolean,
     sortBy?: string,
     sortOrder: string = 'desc',
@@ -347,6 +348,14 @@ export class AdminService {
 
     const where: any = {};
     if (isHighlighted !== undefined) where.isHighlighted = isHighlighted;
+
+    // Search by post caption or user name
+    if (search) {
+      where.OR = [
+        { caption: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
 
     // Filter by month and year (based on createdAt)
     if (month !== undefined || year !== undefined) {
