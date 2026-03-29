@@ -218,6 +218,21 @@ export class AdminController {
     return this.adminService.getRedeems(req.user.id, pageNum, limitNum, status);
   }
 
+  @Post('posts/recalculate-counts')
+  @ApiOperation({
+    summary: 'Recalculate like/share counts for all posts (Admin only)',
+    description:
+      'Single DB update: likeCount = COUNT(LIKE) + likeCountManualBase, shareCount = COUNT(SHARE). Use after data fixes or drift.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'All posts updated; body includes postsUpdated (row count)',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async recalculateAllPostCounts(@Request() req) {
+    return this.adminService.recalculateAllPostCounts(req.user.id);
+  }
+
   @Post('posts/:id/highlight')
   @ApiOperation({ summary: 'Highlight a post (Admin only)' })
   @ApiResponse({ status: 200, description: 'Post highlighted successfully' })

@@ -716,6 +716,48 @@ export class AdminService {
     };
   }
 
+  async recalculateAllPostCounts(actorUserId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: actorUserId },
+    });
+    if (!user || user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can recalculate post counts');
+    }
+
+    const postsUpdated = await this.prisma.$executeRaw`
+      UPDATE posts p
+      SET
+        "likeCount" = COALESCE(agg.real_likes, 0) + p."likeCountManualBase",
+        "shareCount" = COALESCE(agg.real_shares, 0)
+      FROM (
+        SELECT
+          p2.id,
+          l.cnt AS real_likes,
+          s.cnt AS real_shares
+        FROM posts p2
+        LEFT JOIN (
+          SELECT "postId", COUNT(*)::int AS cnt
+          FROM user_post_actions
+          WHERE type = 'LIKE'
+          GROUP BY "postId"
+        ) l ON l."postId" = p2.id
+        LEFT JOIN (
+          SELECT "postId", COUNT(*)::int AS cnt
+          FROM user_post_actions
+          WHERE type = 'SHARE'
+          GROUP BY "postId"
+        ) s ON s."postId" = p2.id
+      ) agg
+      WHERE p.id = agg.id
+    `;
+
+    return {
+      message:
+        'Recalculated likeCount and shareCount for all posts (likeCount = real likes + likeCountManualBase)',
+      postsUpdated,
+    };
+  }
+
   async exportRedeemsToExcel(
     adminId: string,
     res: Response,
