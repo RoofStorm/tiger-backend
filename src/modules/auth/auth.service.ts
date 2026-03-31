@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -69,6 +70,10 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto, anonymousId?: string) {
+    if (this.configService.get<string>('LOCAL_REGISTRATION_ENABLED') !== 'true') {
+      throw new ForbiddenException('Không thể tạo tài khoản.');
+    }
+
     const { username, password, email, name, referralCode } = registerDto;
 
     // Validate: must have either username or email

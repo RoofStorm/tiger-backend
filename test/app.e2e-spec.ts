@@ -12,6 +12,8 @@ describe('AppController (e2e)', () => {
   let userId: string;
 
   beforeAll(async () => {
+    process.env.LOCAL_REGISTRATION_ENABLED = 'true';
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

@@ -103,6 +103,10 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Local registration disabled (set LOCAL_REGISTRATION_ENABLED=true to allow)',
+  })
   @ApiResponse({ status: 409, description: 'User already exists' })
   async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
     const anonymousId = (req as any).anonymousId;

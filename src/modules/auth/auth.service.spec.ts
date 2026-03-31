@@ -1,10 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { PointsService } from '../points/points.service';
+import { ReferralService } from '../referral/referral.service';
+import { AnonymousConversionService } from '../../common/services/anonymous-conversion.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -30,10 +37,15 @@ describe('AuthService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    pointLog: {
+      findFirst: jest.fn(),
+    },
   };
 
   const mockUsersService = {
     sanitizeUser: jest.fn(),
+    findByUsername: jest.fn(),
+    findByEmail: jest.fn(),
   };
 
   const mockJwtService = {
@@ -44,6 +56,17 @@ describe('AuthService', () => {
   const mockConfigService = {
     get: jest.fn(),
   };
+
+  const mockReferralService = {
+    generateReferralCode: jest.fn().mockResolvedValue('REFTEST01'),
+    processReferral: jest.fn(),
+  };
+
+  const mockPointsService = {
+    awardPoints: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockAnonymousConversionService = {};
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -65,6 +88,9 @@ describe('AuthService', () => {
           provide: ConfigService,
           useValue: mockConfigService,
         },
+        { provide: ReferralService, useValue: mockReferralService },
+        { provide: PointsService, useValue: mockPointsService },
+        { provide: AnonymousConversionService, useValue: mockAnonymousConversionService },
       ],
     }).compile();
 
@@ -78,18 +104,42 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
+    beforeEach(() => {
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'LOCAL_REGISTRATION_ENABLED') return 'true';
+        if (key === 'JWT_REFRESH_SECRET') return 'refresh-secret';
+        if (key === 'JWT_REFRESH_EXPIRES_IN') return '7d';
+        return undefined;
+      });
+      mockUsersService.findByUsername.mockResolvedValue(null);
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockPrismaService.user.create.mockResolvedValue(mockUser);
+      mockPrismaService.user.update.mockResolvedValue({ ...mockUser, referralCode: 'REFTEST01' });
+      mockJwtService.signAsync.mockResolvedValue('access-token');
+      mockUsersService.sanitizeUser.mockReturnValue({ ...mockUser, passwordHash: undefined });
+    });
+
+    it('should throw ForbiddenException when local registration is disabled', async () => {
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'LOCAL_REGISTRATION_ENABLED') return undefined;
+        return 'refresh-secret';
+      });
+
+      await expect(
+        service.register({
+          email: 'test@example.com',
+          password: 'password123',
+          name: 'Test User',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
     it('should register a new user successfully', async () => {
       const registerDto = {
         email: 'test@example.com',
         password: 'password123',
         name: 'Test User',
       };
-
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
-      mockPrismaService.user.create.mockResolvedValue(mockUser);
-      mockJwtService.signAsync.mockResolvedValue('access-token');
-      mockConfigService.get.mockReturnValue('refresh-secret');
-      mockUsersService.sanitizeUser.mockReturnValue({ ...mockUser, passwordHash: undefined });
 
       const result = await service.register(registerDto);
 
@@ -113,16 +163,25 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
+    beforeEach(() => {
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'JWT_REFRESH_SECRET') return 'refresh-secret';
+        if (key === 'JWT_REFRESH_EXPIRES_IN') return '7d';
+        return undefined;
+      });
+    });
+
     it('should login user successfully', async () => {
       const loginDto = {
-        email: 'test@example.com',
+        username: 'test@example.com',
         password: 'password123',
       };
 
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockUsersService.findByUsername.mockResolvedValue(null);
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockPrismaService.pointLog.findFirst.mockResolvedValue(null);
       mockUsersService.sanitizeUser.mockReturnValue({ ...mockUser, passwordHash: undefined });
       mockJwtService.signAsync.mockResolvedValue('access-token');
-      mockConfigService.get.mockReturnValue('refresh-secret');
 
       // Mock bcrypt.compare
       const bcrypt = require('bcrypt');
@@ -137,11 +196,12 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException for invalid credentials', async () => {
       const loginDto = {
-        email: 'test@example.com',
+        username: 'test@example.com',
         password: 'wrong-password',
       };
 
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockUsersService.findByUsername.mockResolvedValue(null);
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
 
       // Mock bcrypt.compare
       const bcrypt = require('bcrypt');
@@ -153,7 +213,7 @@ describe('AuthService', () => {
 
   describe('validateUser', () => {
     it('should return user if credentials are valid', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockUsersService.findByUsername.mockResolvedValue(mockUser);
       mockUsersService.sanitizeUser.mockReturnValue({ ...mockUser, passwordHash: undefined });
 
       // Mock bcrypt.compare
@@ -166,7 +226,7 @@ describe('AuthService', () => {
     });
 
     it('should return null if credentials are invalid', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockUsersService.findByUsername.mockResolvedValue(mockUser);
 
       // Mock bcrypt.compare
       const bcrypt = require('bcrypt');
