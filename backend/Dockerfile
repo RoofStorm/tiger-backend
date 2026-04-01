@@ -9,6 +9,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY .npmrc ./
 COPY prisma ./prisma/
 
 # Install ALL dependencies (including devDependencies for build)
@@ -45,9 +46,10 @@ RUN apk add --no-cache openssl openssl-dev
 
 # Copy package files
 COPY package*.json ./
+COPY .npmrc ./
 
 # Install ONLY production dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy prisma schema from builder
 COPY --from=builder /app/prisma ./prisma
