@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { adminFeatures } from '../src/constants/admin-features';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -12,7 +13,7 @@ describe('AppController (e2e)', () => {
   let userId: string;
 
   beforeAll(async () => {
-    process.env.LOCAL_REGISTRATION_ENABLED = 'true';
+    adminFeatures.isDisabledByAdmin = false;
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],

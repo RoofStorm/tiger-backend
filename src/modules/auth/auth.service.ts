@@ -17,6 +17,7 @@ import { AnonymousConversionService } from '../../common/services/anonymous-conv
 import { LoginDto, RegisterDto, RefreshTokenDto, ChangePasswordDto } from './dto/auth.dto';
 import { LoginMethod, UserStatus } from '@prisma/client';
 import { POINTS } from '../../constants/points';
+import { adminFeatures } from '../../constants/admin-features';
 
 @Injectable()
 export class AuthService {
@@ -70,7 +71,7 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto, anonymousId?: string) {
-    if (this.configService.get<string>('LOCAL_REGISTRATION_ENABLED') !== 'true') {
+    if (adminFeatures.isDisabledByAdmin) {
       throw new ForbiddenException('Không thể tạo tài khoản.');
     }
 

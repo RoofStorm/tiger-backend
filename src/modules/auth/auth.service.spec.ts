@@ -12,6 +12,7 @@ import { UsersService } from '../users/users.service';
 import { PointsService } from '../points/points.service';
 import { ReferralService } from '../referral/referral.service';
 import { AnonymousConversionService } from '../../common/services/anonymous-conversion.service';
+import { adminFeatures } from '../../constants/admin-features';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -105,8 +106,8 @@ describe('AuthService', () => {
 
   describe('register', () => {
     beforeEach(() => {
+      adminFeatures.isDisabledByAdmin = false;
       mockConfigService.get.mockImplementation((key: string) => {
-        if (key === 'LOCAL_REGISTRATION_ENABLED') return 'true';
         if (key === 'JWT_REFRESH_SECRET') return 'refresh-secret';
         if (key === 'JWT_REFRESH_EXPIRES_IN') return '7d';
         return undefined;
@@ -119,11 +120,8 @@ describe('AuthService', () => {
       mockUsersService.sanitizeUser.mockReturnValue({ ...mockUser, passwordHash: undefined });
     });
 
-    it('should throw ForbiddenException when local registration is disabled', async () => {
-      mockConfigService.get.mockImplementation((key: string) => {
-        if (key === 'LOCAL_REGISTRATION_ENABLED') return undefined;
-        return 'refresh-secret';
-      });
+    it('should throw ForbiddenException when admin has disabled registration', async () => {
+      adminFeatures.isDisabledByAdmin = true;
 
       await expect(
         service.register({

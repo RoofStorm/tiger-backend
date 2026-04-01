@@ -63,6 +63,11 @@ export class RedeemController {
     status: 400,
     description: 'Invalid gift code or insufficient points',
   })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Creating redeem requests disabled by admin (see src/constants/admin-features.ts)',
+  })
   async createRedeem(@Body() createRedeemDto: CreateRedeemDto, @Request() req) {
     return this.redeemService.createRedeem(createRedeemDto, req.user.id);
   }

@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { adminFeatures } from '../../constants/admin-features';
 import { PointsService } from '../points/points.service';
 import { CreateRedeemDto } from './dto/create-redeem.dto';
 import { RedeemStatus } from '@prisma/client';
@@ -20,6 +21,12 @@ export class RedeemService {
   ) {}
 
   async createRedeem(createRedeemDto: CreateRedeemDto, userId: string) {
+    if (adminFeatures.isDisabledByAdmin) {
+      throw new ForbiddenException(
+        'Hiện không thể gửi yêu cầu đổi thưởng.',
+      );
+    }
+
     const { rewardId, receiverPhone, receiverEmail } = createRedeemDto;
     const receiverPhoneValue = receiverPhone?.trim() ?? '';
     const receiverEmailValue = receiverEmail?.trim() ?? '';

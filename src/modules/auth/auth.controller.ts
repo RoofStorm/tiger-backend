@@ -105,7 +105,8 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({
     status: 403,
-    description: 'Local registration disabled (set LOCAL_REGISTRATION_ENABLED=true to allow)',
+    description:
+      'Local registration disabled by admin (see src/constants/admin-features.ts)',
   })
   @ApiResponse({ status: 409, description: 'User already exists' })
   async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
