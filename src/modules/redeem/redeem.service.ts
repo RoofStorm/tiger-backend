@@ -21,13 +21,13 @@ export class RedeemService {
   ) {}
 
   async createRedeem(createRedeemDto: CreateRedeemDto, userId: string) {
-    if (adminFeatures.isDisabledByAdmin) {
+    const { rewardId, receiverPhone, receiverEmail } = createRedeemDto;
+
+    if (adminFeatures.disabledRedeemRewardIds.includes(rewardId)) {
       throw new ForbiddenException(
-        'Hiện không thể gửi yêu cầu đổi thưởng.',
+        'Phần quà này tạm thời không thể đổi.',
       );
     }
-
-    const { rewardId, receiverPhone, receiverEmail } = createRedeemDto;
     const receiverPhoneValue = receiverPhone?.trim() ?? '';
     const receiverEmailValue = receiverEmail?.trim() ?? '';
 

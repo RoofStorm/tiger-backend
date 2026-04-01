@@ -66,7 +66,7 @@ export class RedeemController {
   @ApiResponse({
     status: 403,
     description:
-      'Creating redeem requests disabled by admin (see src/constants/admin-features.ts)',
+      'This reward ID is temporarily disabled (see adminFeatures.disabledRedeemRewardIds)',
   })
   async createRedeem(@Body() createRedeemDto: CreateRedeemDto, @Request() req) {
     return this.redeemService.createRedeem(createRedeemDto, req.user.id);
